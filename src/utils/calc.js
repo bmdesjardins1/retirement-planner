@@ -56,7 +56,7 @@ export function runProjection(inputs) {
   // LTC is intentionally NOT scaled by survivorFactor (care costs are per-person, not household).
   // LTC is also NOT scaled by CoL index — facility rates don't correlate with general CoL the same way.
   const baseNonHealthcareNeed = (housing + food + transport + leisure + other) * col * survivorFactor;
-  const baseHealthcareNeed    = healthcare * col * survivorFactor;
+  const baseHealthcareNeed    = healthcare * col;
   const baseLTCNeed           = longTermCare; // flat monthly — applied only from ltcStartAge onward
 
   const ssMonthly = ss1 + (hasSpouse ? ss2 : 0);

@@ -29,3 +29,24 @@ describe('runProjection', () => {
     expect(result.yearsData.length).toBeGreaterThan(0);
   });
 });
+
+describe('Fix 1: healthcare survivorFactor', () => {
+  it('healthcare cost is not scaled by survivorFactor', () => {
+    // Zero non-healthcare spending except leisure ($500) so both components are non-zero
+    const inputs = { ...BASE, housing: 0, food: 0, transport: 0, leisure: 500, other: 0, healthcare: 800 };
+    const combined = runProjection({ ...inputs, survivorFactor: 1.0 });
+    const solo     = runProjection({ ...inputs, survivorFactor: 0.6 });
+    // With the fix: adjustedExpenses differs only by the leisure component, not healthcare
+    // combined: (500*1.0 + 800) * col = 1300 * col
+    // solo:     (500*0.6 + 800) * col = 1100 * col  → difference = 200 * col
+    const diff = combined.adjustedExpenses - solo.adjustedExpenses;
+    expect(diff).toBeCloseTo(500 * 0.4, -1);  // only leisure scales, not healthcare
+  });
+
+  it('non-healthcare expenses are still scaled by survivorFactor', () => {
+    const inputs = { ...BASE, healthcare: 0, housing: 1000, food: 500, transport: 200, leisure: 0, other: 0 };
+    const combined = runProjection({ ...inputs, survivorFactor: 1.0 });
+    const solo     = runProjection({ ...inputs, survivorFactor: 0.6 });
+    expect(solo.adjustedExpenses).toBeCloseTo(combined.adjustedExpenses * 0.6, -1);
+  });
+});
