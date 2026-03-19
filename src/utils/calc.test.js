@@ -12,7 +12,7 @@ const BASE = {
   annualContribIRA: 3000, annualContribOther: 0,
   spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
   spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
-  savings401k: 300000, iraBalance: 75000, taxableInvestments: 50000,
+  trad401k: 300000, roth401k: 0, tradIRA: 75000, rothIRA: 0, taxableBrokerage: 50000,
   homeValue: 300000, homeOwned: true,
   investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
   housing: 1500, food: 700, healthcare: 800, transport: 400, leisure: 500, other: 300,

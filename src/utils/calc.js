@@ -40,9 +40,7 @@ export function runProjection(inputs) {
     annualContrib401k, employerMatch = 0, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k = 0, spouseEmployerMatch = 0,
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
-    trad401k: _trad401k = 0, roth401k = 0, tradIRA: _tradIRA = 0, rothIRA = 0, taxableBrokerage: _taxableBrokerage = 0,
-    // Legacy field aliases (backward compatibility)
-    savings401k = 0, iraBalance = 0, taxableInvestments = 0,
+    trad401k = 0, roth401k = 0, tradIRA = 0, rothIRA = 0, taxableBrokerage = 0,
     homeValue, homeOwned,
     investmentReturn, inflation, healthcareInflation,
     housing, food, healthcare, transport, leisure, other,
@@ -50,12 +48,6 @@ export function runProjection(inputs) {
     stateInfo,
     survivorFactor = 1.0,
   } = inputs;
-
-  // Resolve new account type fields, falling back to legacy field names for backward compatibility.
-  // New callers supply trad401k/tradIRA/taxableBrokerage; legacy callers supply savings401k/iraBalance/taxableInvestments.
-  const trad401k         = _trad401k         || savings401k;
-  const tradIRA          = _tradIRA          || iraBalance;
-  const taxableBrokerage = _taxableBrokerage || taxableInvestments;
 
   const col = stateInfo.costOfLivingIndex / 100;
   const totalMonthlyExpenses = housing + food + healthcare + transport + leisure + other;
@@ -148,6 +140,7 @@ export function runProjection(inputs) {
     ? Math.max(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
     : lifeExpectancy;
 
+  // +30 buffer: ensures well-funded portfolios show meaningful runway beyond life expectancy
   const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 30, 30);
 
   for (let y = 0; y <= yearsToProject; y++) {
