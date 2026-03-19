@@ -35,10 +35,12 @@ function applyBrackets(taxableIncome, brackets) {
  * married          — true if filing jointly with a spouse
  * age              — primary filer's age (used for senior standard deduction bonus)
  */
-export function estimateFederalTax({ ssAnnual, ordinaryIncome, withdrawalEstimate, married, age }) {
+export function estimateFederalTax({ ssAnnual, ordinaryIncome, withdrawalEstimate, capitalGains = 0, married, age }) {
   // The IRS uses "combined income" to decide how much of Social Security is taxable.
   // Combined income = other income + half of your SS benefits.
-  const combinedIncome = ordinaryIncome + withdrawalEstimate + ssAnnual / 2;
+  // Capital gains count toward combined income (for SS taxation purposes) but are taxed
+  // at LTCG rates, not ordinary rates, so they are NOT added to grossFederalIncome below.
+  const combinedIncome = ordinaryIncome + withdrawalEstimate + capitalGains + ssAnnual / 2;
 
   const lowerThreshold = married ? 32000 : 25000;
   const upperThreshold = married ? 44000 : 34000;

@@ -198,15 +198,16 @@ export function runProjection(inputs) {
     const stateTaxOnTrad = tradGross - tradSpend;
 
     // Federal tax — two-iteration real-terms gross-up
-    const realTradGross = tradGross / generalFactor;
+    const realTradGross    = tradGross / generalFactor;
+    const realCapGains     = (taxableSpend * 0.60) / generalFactor;
     const { tax: realFed1 } = estimateFederalTax({
       ssAnnual: realSS, ordinaryIncome: realOrdinary,
-      withdrawalEstimate: realTradGross,
+      withdrawalEstimate: realTradGross, capitalGains: realCapGains,
       married: hasSpouse, age: ageInYear,
     });
     const { tax: realFed2, taxableSS } = estimateFederalTax({
       ssAnnual: realSS, ordinaryIncome: realOrdinary,
-      withdrawalEstimate: realTradGross + realFed1,
+      withdrawalEstimate: realTradGross + realFed1, capitalGains: realCapGains,
       married: hasSpouse, age: ageInYear,
     });
     const federalTax = realFed2 * generalFactor;
@@ -262,6 +263,7 @@ export function runProjection(inputs) {
     ssAnnual: ssMonthly * 12,
     ordinaryIncome: nonSSWithPT * 12,
     withdrawalEstimate: Math.max(monthlyGap, 0) * 12,
+    capitalGains: 0,
     married: hasSpouse,
     age: retirementAge,
   });
