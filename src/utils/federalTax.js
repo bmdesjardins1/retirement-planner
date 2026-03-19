@@ -67,5 +67,46 @@ export function estimateFederalTax({ ssAnnual, ordinaryIncome, withdrawalEstimat
   const taxableIncome = Math.max(0, grossFederalIncome - standardDeduction);
   const brackets = married ? BRACKETS_MARRIED : BRACKETS_SINGLE;
 
-  return Math.round(applyBrackets(taxableIncome, brackets));
+  return {
+    tax: Math.round(applyBrackets(taxableIncome, brackets)),
+    taxableSS: Math.round(taxableSS),
+  };
+}
+
+/**
+ * Estimates long-term capital gains tax.
+ * All inputs must be in real (year-0) dollar terms. Caller scales result back to nominal.
+ *
+ * taxableGains        — the gains portion of a taxable brokerage withdrawal (real terms)
+ * totalOrdinaryIncome — all ordinary income stacked below gains: pension + rental + PT +
+ *                       Traditional account withdrawals (gross) + taxable SS (real terms)
+ * married             — true if filing jointly
+ *
+ * Gains are stacked on top of ordinary income to find the applicable bracket.
+ */
+export function estimateCapitalGainsTax({ taxableGains, totalOrdinaryIncome, married }) {
+  if (taxableGains <= 0) return 0;
+
+  // 2024 long-term capital gains bracket thresholds (lower bound of each rate)
+  const thresholds = married ? [94050, 583750] : [47025, 518900];
+  const rates      = [0.00, 0.15, 0.20];
+
+  const totalIncome = totalOrdinaryIncome + taxableGains;
+  let tax = 0;
+
+  for (let i = 0; i < rates.length; i++) {
+    const bandBottom = i === 0 ? 0 : thresholds[i - 1];
+    const bandTop    = i < thresholds.length ? thresholds[i] : Infinity;
+
+    if (totalIncome <= bandBottom) break;
+
+    // Gains portion that falls in this band = overlap of [ordinaryIncome, totalIncome] with [bandBottom, bandTop]
+    const gainsStart  = Math.max(totalOrdinaryIncome, bandBottom);
+    const gainsEnd    = Math.min(totalIncome, bandTop);
+    const gainsInBand = Math.max(gainsEnd - gainsStart, 0);
+
+    tax += gainsInBand * rates[i];
+  }
+
+  return Math.round(tax);
 }

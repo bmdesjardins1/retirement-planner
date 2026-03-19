@@ -39,15 +39,33 @@ export function PlannerProvider({ children }) {
   const [spouseAnnualContribIRA, setSpouseAnnualContribIRA]     = useState(3000);
   const [spouseAnnualContribOther, setSpouseAnnualContribOther] = useState(0);
 
-  // Primary assets
-  const [savings401k, setSavings401k]               = useState(270000);
-  const [iraBalance, setIraBalance]                 = useState(75000);
-  const [taxableInvestments, setTaxableInvestments] = useState(50000);
+  // Primary assets — 5 typed account fields
+  const [trad401k, setTrad401k]                       = useState(270000);
+  const [roth401k, setRoth401k]                       = useState(0);
+  const [tradIRA, setTradIRA]                         = useState(75000);
+  const [rothIRA, setRothIRA]                         = useState(0);
+  const [taxableBrokerage, setTaxableBrokerage]       = useState(50000);
 
-  // Spouse assets
-  const [spouseSavings401k, setSpouseSavings401k]               = useState(180000);
-  const [spouseIraBalance, setSpouseIraBalance]                 = useState(45000);
-  const [spouseTaxableInvestments, setSpouseTaxableInvestments] = useState(30000);
+  // Primary account visibility toggles (default visible: trad401k, tradIRA, taxableBrokerage)
+  const [hasTrad401k, setHasTrad401k]                 = useState(true);
+  const [hasRoth401k, setHasRoth401k]                 = useState(false);
+  const [hasTradIRA, setHasTradIRA]                   = useState(true);
+  const [hasRothIRA, setHasRothIRA]                   = useState(false);
+  const [hasTaxableBrokerage, setHasTaxableBrokerage] = useState(true);
+
+  // Spouse assets — 5 typed account fields
+  const [spouseTrad401k, setSpouseTrad401k]                       = useState(180000);
+  const [spouseRoth401k, setSpouseRoth401k]                       = useState(0);
+  const [spouseTradIRA, setSpouseTradIRA]                         = useState(45000);
+  const [spouseRothIRA, setSpouseRothIRA]                         = useState(0);
+  const [spouseTaxableBrokerage, setSpouseTaxableBrokerage]       = useState(30000);
+
+  // Spouse account visibility toggles
+  const [spouseHasTrad401k, setSpouseHasTrad401k]                 = useState(true);
+  const [spouseHasRoth401k, setSpouseHasRoth401k]                 = useState(false);
+  const [spouseHasTradIRA, setSpouseHasTradIRA]                   = useState(true);
+  const [spouseHasRothIRA, setSpouseHasRothIRA]                   = useState(false);
+  const [spouseHasTaxableBrokerage, setSpouseHasTaxableBrokerage] = useState(true);
 
   // Shared assets & growth
   const [homeValue, setHomeValue]                       = useState(320000);
@@ -84,9 +102,11 @@ export function PlannerProvider({ children }) {
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     hasSpouse,
     ss1, ss2,
-    savings401k: savings401k + (hasSpouse ? spouseSavings401k : 0),
-    iraBalance: iraBalance + (hasSpouse ? spouseIraBalance : 0),
-    taxableInvestments: taxableInvestments + (hasSpouse ? spouseTaxableInvestments : 0),
+    trad401k: trad401k + (hasSpouse ? spouseTrad401k : 0),
+    roth401k: roth401k + (hasSpouse ? spouseRoth401k : 0),
+    tradIRA: tradIRA + (hasSpouse ? spouseTradIRA : 0),
+    rothIRA: rothIRA + (hasSpouse ? spouseRothIRA : 0),
+    taxableBrokerage: taxableBrokerage + (hasSpouse ? spouseTaxableBrokerage : 0),
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k: hasSpouse ? spouseAnnualContrib401k : 0,
     spouseEmployerMatch:     hasSpouse ? spouseEmployerMatch     : 0,
@@ -98,8 +118,8 @@ export function PlannerProvider({ children }) {
     age, retirementAge, lifeExpectancy,
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     hasSpouse, ss1, ss2,
-    savings401k, iraBalance, taxableInvestments,
-    spouseSavings401k, spouseIraBalance, spouseTaxableInvestments,
+    trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
+    spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
     ...Object.values(sharedInputs),
@@ -110,7 +130,7 @@ export function PlannerProvider({ children }) {
     age, retirementAge, lifeExpectancy,
     hasSpouse: false,
     ss1, ss2: 0,
-    savings401k, iraBalance, taxableInvestments,
+    trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
     spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
@@ -119,7 +139,7 @@ export function PlannerProvider({ children }) {
   }), [
     age, retirementAge, lifeExpectancy,
     ss1,
-    savings401k, iraBalance, taxableInvestments,
+    trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     ...Object.values(sharedInputs),
   ]);
@@ -129,7 +149,9 @@ export function PlannerProvider({ children }) {
     age: spouseAge, retirementAge: spouseRetirementAge, lifeExpectancy: spouseLifeExpectancy,
     hasSpouse: false,
     ss1: ss2, ss2: 0,
-    savings401k: spouseSavings401k, iraBalance: spouseIraBalance, taxableInvestments: spouseTaxableInvestments,
+    trad401k: spouseTrad401k, roth401k: spouseRoth401k,
+    tradIRA: spouseTradIRA, rothIRA: spouseRothIRA,
+    taxableBrokerage: spouseTaxableBrokerage,
     annualContrib401k: spouseAnnualContrib401k, employerMatch: spouseEmployerMatch,
     annualContribIRA: spouseAnnualContribIRA, annualContribOther: spouseAnnualContribOther,
     spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
@@ -139,7 +161,7 @@ export function PlannerProvider({ children }) {
   }) : null, [
     hasSpouse, spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     ss2,
-    spouseSavings401k, spouseIraBalance, spouseTaxableInvestments,
+    spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
     ...Object.values(sharedInputs),
   ]);
@@ -177,13 +199,27 @@ export function PlannerProvider({ children }) {
       partTimeEndAge, setPartTimeEndAge,
       rentalIncome, setRentalIncome,
       // Primary assets
-      savings401k, setSavings401k,
-      iraBalance, setIraBalance,
-      taxableInvestments, setTaxableInvestments,
+      trad401k, setTrad401k,
+      roth401k, setRoth401k,
+      tradIRA, setTradIRA,
+      rothIRA, setRothIRA,
+      taxableBrokerage, setTaxableBrokerage,
+      hasTrad401k, setHasTrad401k,
+      hasRoth401k, setHasRoth401k,
+      hasTradIRA, setHasTradIRA,
+      hasRothIRA, setHasRothIRA,
+      hasTaxableBrokerage, setHasTaxableBrokerage,
       // Spouse assets
-      spouseSavings401k, setSpouseSavings401k,
-      spouseIraBalance, setSpouseIraBalance,
-      spouseTaxableInvestments, setSpouseTaxableInvestments,
+      spouseTrad401k, setSpouseTrad401k,
+      spouseRoth401k, setSpouseRoth401k,
+      spouseTradIRA, setSpouseTradIRA,
+      spouseRothIRA, setSpouseRothIRA,
+      spouseTaxableBrokerage, setSpouseTaxableBrokerage,
+      spouseHasTrad401k, setSpouseHasTrad401k,
+      spouseHasRoth401k, setSpouseHasRoth401k,
+      spouseHasTradIRA, setSpouseHasTradIRA,
+      spouseHasRothIRA, setSpouseHasRothIRA,
+      spouseHasTaxableBrokerage, setSpouseHasTaxableBrokerage,
       // Shared assets
       homeValue, setHomeValue,
       homeOwned, setHomeOwned,

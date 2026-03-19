@@ -1,4 +1,4 @@
-import { estimateFederalTax } from "./federalTax";
+import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
 
 export function verdictConfig(years, lifeExpectancy, age) {
   const remaining = lifeExpectancy - age;
@@ -40,13 +40,22 @@ export function runProjection(inputs) {
     annualContrib401k, employerMatch = 0, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k = 0, spouseEmployerMatch = 0,
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
-    savings401k, iraBalance, taxableInvestments, homeValue, homeOwned,
+    trad401k: _trad401k = 0, roth401k = 0, tradIRA: _tradIRA = 0, rothIRA = 0, taxableBrokerage: _taxableBrokerage = 0,
+    // Legacy field aliases (backward compatibility)
+    savings401k = 0, iraBalance = 0, taxableInvestments = 0,
+    homeValue, homeOwned,
     investmentReturn, inflation, healthcareInflation,
     housing, food, healthcare, transport, leisure, other,
     longTermCare = 0, ltcStartAge = 80,
     stateInfo,
     survivorFactor = 1.0,
   } = inputs;
+
+  // Resolve new account type fields, falling back to legacy field names for backward compatibility.
+  // New callers supply trad401k/tradIRA/taxableBrokerage; legacy callers supply savings401k/iraBalance/taxableInvestments.
+  const trad401k         = _trad401k         || savings401k;
+  const tradIRA          = _tradIRA          || iraBalance;
+  const taxableBrokerage = _taxableBrokerage || taxableInvestments;
 
   const col = stateInfo.costOfLivingIndex / 100;
   const totalMonthlyExpenses = housing + food + healthcare + transport + leisure + other;
@@ -88,7 +97,7 @@ export function runProjection(inputs) {
   const adjustedExpenses = (baseNonHealthcareNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
   const monthlyGap = totalMonthlyNeed - netMonthlyIncome;
-  const totalLiquidAssets = savings401k + iraBalance + taxableInvestments;
+  const totalLiquidAssets = trad401k + roth401k + tradIRA + rothIRA + taxableBrokerage;
 
   const yearsData = [];
   let portfolio = totalLiquidAssets;
@@ -126,13 +135,20 @@ export function runProjection(inputs) {
 
   const portfolioAtRetirement = Math.round(portfolio);
 
+  // Initialize drawdown buckets proportional to accumulation growth.
+  // All asset types grow at the same expected return during accumulation.
+  const growthFactor = totalLiquidAssets > 0 ? portfolioAtRetirement / totalLiquidAssets : 1;
+  let taxableBucket = taxableBrokerage * growthFactor;
+  let tradBucket    = (trad401k + tradIRA) * growthFactor;
+  let rothBucket    = (roth401k + rothIRA) * growthFactor;
+
   // ── Phase 2: Drawdown (retirementAge → effectiveLifeExpectancy + buffer) ────
   // For combined projections the household needs money until the last survivor dies.
   const effectiveLifeExpectancy = hasSpouse
     ? Math.max(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
     : lifeExpectancy;
 
-  const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 15, 30);
+  const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 30, 30);
 
   for (let y = 0; y <= yearsToProject; y++) {
     const currentYear = new Date().getFullYear() + accumulationYears + y;
@@ -167,28 +183,71 @@ export function runProjection(inputs) {
     // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
     const realSS       = ssMonthly * 12;
     const realOrdinary = currentNonSS * 12;
-    const realGap      = preTaxGap / generalFactor;
 
-    // Iteration 1: tax on net gap
-    const realTax1 = estimateFederalTax({
+    // --- Per-bucket growth (grow first, then withdraw — matches existing loop structure) ---
+    const bucketGrowthRate = investmentReturn / 100;
+    taxableBucket += taxableBucket * bucketGrowthRate;
+    tradBucket    += tradBucket    * bucketGrowthRate;
+    rothBucket    += rothBucket    * bucketGrowthRate;
+
+    // --- Step 1: Spending allocation across buckets (taxable → Traditional → Roth) ---
+    // Allocate only the net spending gap. Taxes computed from this split avoid circular dependency.
+    const taxableSpend = Math.min(taxableBucket, preTaxGap);
+    const remaining1   = preTaxGap - taxableSpend;
+    const tradSpend    = Math.min(tradBucket, remaining1);
+    const rothSpend    = Math.min(rothBucket, remaining1 - tradSpend);
+
+    // --- Step 2: Tax computation based on spending split ---
+    const stateTaxRate = stateInfo.incomeTax;
+
+    // State tax on Traditional spending (flat-rate gross-up is exact)
+    const tradGross      = stateTaxRate < 1 ? tradSpend / (1 - stateTaxRate) : tradSpend;
+    const stateTaxOnTrad = tradGross - tradSpend;
+
+    // Federal tax — two-iteration real-terms gross-up
+    const realTradGross = tradGross / generalFactor;
+    const { tax: realFed1 } = estimateFederalTax({
       ssAnnual: realSS, ordinaryIncome: realOrdinary,
-      withdrawalEstimate: realGap,
+      withdrawalEstimate: realTradGross,
       married: hasSpouse, age: ageInYear,
     });
-
-    // Iteration 2: gross up — gap + iter-1 tax
-    const realTax2 = estimateFederalTax({
+    const { tax: realFed2, taxableSS } = estimateFederalTax({
       ssAnnual: realSS, ordinaryIncome: realOrdinary,
-      withdrawalEstimate: realGap + realTax1,
+      withdrawalEstimate: realTradGross + realFed1,
       married: hasSpouse, age: ageInYear,
     });
+    const federalTax = realFed2 * generalFactor;
 
-    const federalTax     = realTax2 * generalFactor;
+    // Capital gains tax on taxable brokerage withdrawal (60% assumed gains, real terms)
+    const capGainsTax = estimateCapitalGainsTax({
+      taxableGains: (taxableSpend * 0.60) / generalFactor,
+      totalOrdinaryIncome: realOrdinary + (tradGross / generalFactor) + taxableSS,
+      married: hasSpouse,
+    }) * generalFactor;
 
-    // Actual withdrawal covers both the spending gap and the federal tax bill
-    const yearlyWithdrawal = preTaxGap + federalTax;
-    const growth = portfolio * (investmentReturn / 100);
-    portfolio = portfolio + growth - yearlyWithdrawal;
+    // --- Step 3: Total portfolio deduction ---
+    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + federalTax;
+
+    // --- Bucket balance updates ---
+    taxableBucket -= taxableSpend;
+    tradBucket    -= tradGross;   // gross amount (includes state tax)
+    rothBucket    -= rothSpend;
+
+    // Remaining taxes drawn from buckets in same order
+    let taxesLeft = capGainsTax + federalTax;
+    const taxFromTaxable = Math.min(taxableBucket, taxesLeft);
+    taxableBucket -= taxFromTaxable;
+    taxesLeft     -= taxFromTaxable;
+    const taxFromTrad = Math.min(tradBucket, taxesLeft);
+    tradBucket    -= taxFromTrad;
+    taxesLeft     -= taxFromTrad;
+    rothBucket    -= Math.min(rothBucket, taxesLeft);
+
+    // Clamp to zero, recompute portfolio
+    taxableBucket = Math.max(taxableBucket, 0);
+    tradBucket    = Math.max(tradBucket,    0);
+    rothBucket    = Math.max(rothBucket,    0);
+    portfolio     = taxableBucket + tradBucket + rothBucket;
 
     yearsData.push({
       year: currentYear,
@@ -206,13 +265,14 @@ export function runProjection(inputs) {
   const runwayYears = runOutYear ? runOutYear - retirementAge : yearsToProject;
 
   // Year-0 federal tax estimate for summary display
-  const federalTaxMonthly = Math.round(estimateFederalTax({
+  const { tax: federalTaxAnnual } = estimateFederalTax({
     ssAnnual: ssMonthly * 12,
     ordinaryIncome: nonSSWithPT * 12,
     withdrawalEstimate: Math.max(monthlyGap, 0) * 12,
     married: hasSpouse,
     age: retirementAge,
-  }) / 12);
+  });
+  const federalTaxMonthly = Math.round(federalTaxAnnual / 12);
 
   return {
     totalMonthlyExpenses: Math.round(totalMonthlyExpenses),

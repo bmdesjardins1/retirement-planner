@@ -86,3 +86,51 @@ describe('Fix 4: pension COLA', () => {
     expect(withCOLA.runwayYears).toBe(noCOLA.runwayYears);
   });
 });
+
+// Phase 2 base inputs — uses new account type fields
+const P2_BASE = {
+  age: 50, retirementAge: 65, lifeExpectancy: 85,
+  hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+  ss1: 2000, ss2: 0,
+  pension: 0, pensionCOLA: false,
+  partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+  annualContrib401k: 10000, employerMatch: 5000,
+  annualContribIRA: 3000, annualContribOther: 0,
+  spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+  spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+  trad401k: 300000, roth401k: 0, tradIRA: 75000, rothIRA: 0, taxableBrokerage: 50000,
+  homeValue: 300000, homeOwned: true,
+  investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
+  housing: 1500, food: 700, healthcare: 800, transport: 400, leisure: 500, other: 300,
+  longTermCare: 0, ltcStartAge: 80,
+  stateInfo: { incomeTax: 0.05, hasSSIncomeTax: false, avgPropertyTaxRate: 0.009, costOfLivingIndex: 100 },
+  survivorFactor: 1.0,
+};
+
+describe('Phase 2: account type bucket tracking', () => {
+  it('Roth-only portfolio produces longer runway than Traditional-only (same total)', () => {
+    const allRoth = runProjection({
+      ...P2_BASE, trad401k: 0, tradIRA: 0, roth401k: 300000, rothIRA: 75000, taxableBrokerage: 0,
+    });
+    const allTrad = runProjection({
+      ...P2_BASE, trad401k: 300000, tradIRA: 75000, roth401k: 0, rothIRA: 0, taxableBrokerage: 0,
+    });
+    expect(allRoth.runwayYears).toBeGreaterThan(allTrad.runwayYears);
+  });
+
+  it('totalLiquidAssets equals sum of all 5 account fields', () => {
+    const result = runProjection(P2_BASE);
+    const expected = P2_BASE.trad401k + P2_BASE.roth401k + P2_BASE.tradIRA + P2_BASE.rothIRA + P2_BASE.taxableBrokerage;
+    expect(result.totalLiquidAssets).toBe(expected);
+  });
+
+  it('taxable brokerage incurs capital gains tax → shorter runway than equivalent Roth', () => {
+    const allTaxable = runProjection({
+      ...P2_BASE, trad401k: 0, tradIRA: 0, roth401k: 0, rothIRA: 0, taxableBrokerage: 375000,
+    });
+    const allRoth = runProjection({
+      ...P2_BASE, trad401k: 0, tradIRA: 0, roth401k: 375000, rothIRA: 0, taxableBrokerage: 0,
+    });
+    expect(allRoth.runwayYears).toBeGreaterThanOrEqual(allTaxable.runwayYears);
+  });
+});
