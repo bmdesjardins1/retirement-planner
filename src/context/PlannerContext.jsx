@@ -22,6 +22,7 @@ export function PlannerProvider({ children }) {
   const [ss1, setSs1]                         = useState(1800);
   const [ss2, setSs2]                         = useState(1400);
   const [pension, setPension]                 = useState(0);
+  const [pensionCOLA, setPensionCOLA]         = useState(false);
   const [partTimeIncome, setPartTimeIncome]   = useState(0);
   const [partTimeEndAge, setPartTimeEndAge]   = useState(70);
   const [rentalIncome, setRentalIncome]       = useState(0);
@@ -70,7 +71,7 @@ export function PlannerProvider({ children }) {
 
   // Shared inputs passed to every projection
   const sharedInputs = {
-    pension, partTimeIncome, partTimeEndAge, rentalIncome,
+    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
     housing, food, healthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
@@ -171,6 +172,7 @@ export function PlannerProvider({ children }) {
       ss1, setSs1,
       ss2, setSs2,
       pension, setPension,
+      pensionCOLA, setPensionCOLA,
       partTimeIncome, setPartTimeIncome,
       partTimeEndAge, setPartTimeEndAge,
       rentalIncome, setRentalIncome,

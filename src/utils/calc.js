@@ -36,7 +36,7 @@ export function runProjection(inputs) {
   const {
     age: currentAge, retirementAge, lifeExpectancy, hasSpouse,
     spouseAge = 0, spouseRetirementAge = 65, spouseLifeExpectancy = lifeExpectancy,
-    ss1, ss2, pension, partTimeIncome, partTimeEndAge, rentalIncome,
+    ss1, ss2, pension, pensionCOLA = false, partTimeIncome, partTimeEndAge, rentalIncome,
     annualContrib401k, employerMatch = 0, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k = 0, spouseEmployerMatch = 0,
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
@@ -63,23 +63,27 @@ export function runProjection(inputs) {
   const ssTaxableMonthly = stateInfo.hasSSIncomeTax ? ssMonthly : 0;
   const monthlyPropertyTax = homeOwned ? (homeValue * stateInfo.avgPropertyTaxRate) / 12 : 0;
 
-  // Net income with part-time work (used until partTimeEndAge)
-  const grossWithPT = ssMonthly + pension + partTimeIncome + rentalIncome;
-  const taxWithPT = (pension + partTimeIncome + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const netIncomeWithPT = grossWithPT - taxWithPT;
+  // Pension extracted so it can inflate independently (pensionCOLA toggle).
+  const pensionStateTax   = pension * stateInfo.incomeTax;
+  const pensionNetMonthly = pension - pensionStateTax;
 
-  // Net income after part-time work ends
-  const grossWithoutPT = ssMonthly + pension + rentalIncome;
-  const taxWithoutPT = (pension + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const netIncomeWithoutPT = grossWithoutPT - taxWithoutPT;
+  // Non-pension income (SS + part-time + rental) — always inflates with generalFactor
+  const nonPensionGrossWithPT    = ssMonthly + partTimeIncome + rentalIncome;
+  const nonPensionTaxWithPT      = (partTimeIncome + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
+  const nonPensionNetWithPT      = nonPensionGrossWithPT - nonPensionTaxWithPT;
 
-  // Non-SS ordinary income (pension + part-time + rental) — used for federal tax calc
-  const nonSSWithPT = pension + partTimeIncome + rentalIncome;
+  const nonPensionGrossWithoutPT = ssMonthly + rentalIncome;
+  const nonPensionTaxWithoutPT   = (rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
+  const nonPensionNetWithoutPT   = nonPensionGrossWithoutPT - nonPensionTaxWithoutPT;
+
+  // Non-SS ordinary income — used for federal tax in real terms.
+  // Pension is always its year-0 value in real terms (whether or not it has COLA).
+  const nonSSWithPT    = pension + partTimeIncome + rentalIncome;
   const nonSSWithoutPT = pension + rentalIncome;
 
-  // For summary cards — show current (with PT if applicable)
-  const netMonthlyIncome = netIncomeWithPT;
-  const stateTaxMonthly = taxWithPT;
+  // For summary cards (year-0, with part-time)
+  const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly;
+  const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax;
 
   const adjustedExpenses = (baseNonHealthcareNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
@@ -146,8 +150,11 @@ export function runProjection(inputs) {
       baseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC;
     const ptEnded = ageInYear >= partTimeEndAge;
-    const currentNetIncome = ptEnded ? netIncomeWithoutPT : netIncomeWithPT;
-    const yearlyIncome = currentNetIncome * 12 * generalFactor;
+    const baseNonPensionNet = ptEnded ? nonPensionNetWithoutPT : nonPensionNetWithPT;
+    const pensionContrib = pensionCOLA
+      ? pensionNetMonthly * 12 * generalFactor   // COLA: inflates with general inflation
+      : pensionNetMonthly * 12;                  // Fixed: stays flat in nominal dollars
+    const yearlyIncome = (baseNonPensionNet * 12 * generalFactor) + pensionContrib;
 
     // Estimate portfolio withdrawal needed before accounting for federal tax
     const preTaxGap = Math.max(yearlyNeed - yearlyIncome, 0);
@@ -159,7 +166,7 @@ export function runProjection(inputs) {
     // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
     // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
     const realSS       = ssMonthly * 12;
-    const realOrdinary = currentNonSS * 12;  // ← updated in Task 4 when pension is split out
+    const realOrdinary = currentNonSS * 12;
     const realGap      = preTaxGap / generalFactor;
 
     // Iteration 1: tax on net gap

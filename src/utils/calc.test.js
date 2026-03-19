@@ -71,3 +71,18 @@ describe('Fix 2+3: federal bracket inflation + gross-up', () => {
     });
   });
 });
+
+describe('Fix 4: pension COLA', () => {
+  it('COLA pension yields longer runway than fixed pension', () => {
+    const inputs = { ...BASE, pension: 1500, ss1: 500 };
+    const withCOLA    = runProjection({ ...inputs, pensionCOLA: true });
+    const fixedPension = runProjection({ ...inputs, pensionCOLA: false });
+    expect(withCOLA.runwayYears).toBeGreaterThanOrEqual(fixedPension.runwayYears);
+  });
+
+  it('pensionCOLA has no effect when pension is zero', () => {
+    const withCOLA = runProjection({ ...BASE, pension: 0, pensionCOLA: true });
+    const noCOLA   = runProjection({ ...BASE, pension: 0, pensionCOLA: false });
+    expect(withCOLA.runwayYears).toBe(noCOLA.runwayYears);
+  });
+});
