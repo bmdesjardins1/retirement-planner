@@ -1,4 +1,4 @@
-import { estimateFederalTax } from "./federalTax";
+import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
 
 export function verdictConfig(years, lifeExpectancy, age) {
   const remaining = lifeExpectancy - age;
@@ -36,11 +36,12 @@ export function runProjection(inputs) {
   const {
     age: currentAge, retirementAge, lifeExpectancy, hasSpouse,
     spouseAge = 0, spouseRetirementAge = 65, spouseLifeExpectancy = lifeExpectancy,
-    ss1, ss2, pension, partTimeIncome, partTimeEndAge, rentalIncome,
+    ss1, ss2, pension, pensionCOLA = false, partTimeIncome, partTimeEndAge, rentalIncome,
     annualContrib401k, employerMatch = 0, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k = 0, spouseEmployerMatch = 0,
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
-    savings401k, iraBalance, taxableInvestments, homeValue, homeOwned,
+    trad401k = 0, roth401k = 0, tradIRA = 0, rothIRA = 0, taxableBrokerage = 0,
+    homeValue, homeOwned,
     investmentReturn, inflation, healthcareInflation,
     housing, food, healthcare, transport, leisure, other,
     longTermCare = 0, ltcStartAge = 80,
@@ -56,35 +57,39 @@ export function runProjection(inputs) {
   // LTC is intentionally NOT scaled by survivorFactor (care costs are per-person, not household).
   // LTC is also NOT scaled by CoL index — facility rates don't correlate with general CoL the same way.
   const baseNonHealthcareNeed = (housing + food + transport + leisure + other) * col * survivorFactor;
-  const baseHealthcareNeed    = healthcare * col * survivorFactor;
+  const baseHealthcareNeed    = healthcare * col;
   const baseLTCNeed           = longTermCare; // flat monthly — applied only from ltcStartAge onward
 
   const ssMonthly = ss1 + (hasSpouse ? ss2 : 0);
   const ssTaxableMonthly = stateInfo.hasSSIncomeTax ? ssMonthly : 0;
   const monthlyPropertyTax = homeOwned ? (homeValue * stateInfo.avgPropertyTaxRate) / 12 : 0;
 
-  // Net income with part-time work (used until partTimeEndAge)
-  const grossWithPT = ssMonthly + pension + partTimeIncome + rentalIncome;
-  const taxWithPT = (pension + partTimeIncome + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const netIncomeWithPT = grossWithPT - taxWithPT;
+  // Pension extracted so it can inflate independently (pensionCOLA toggle).
+  const pensionStateTax   = pension * stateInfo.incomeTax;
+  const pensionNetMonthly = pension - pensionStateTax;
 
-  // Net income after part-time work ends
-  const grossWithoutPT = ssMonthly + pension + rentalIncome;
-  const taxWithoutPT = (pension + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const netIncomeWithoutPT = grossWithoutPT - taxWithoutPT;
+  // Non-pension income (SS + part-time + rental) — always inflates with generalFactor
+  const nonPensionGrossWithPT    = ssMonthly + partTimeIncome + rentalIncome;
+  const nonPensionTaxWithPT      = (partTimeIncome + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
+  const nonPensionNetWithPT      = nonPensionGrossWithPT - nonPensionTaxWithPT;
 
-  // Non-SS ordinary income (pension + part-time + rental) — used for federal tax calc
-  const nonSSWithPT = pension + partTimeIncome + rentalIncome;
+  const nonPensionGrossWithoutPT = ssMonthly + rentalIncome;
+  const nonPensionTaxWithoutPT   = (rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
+  const nonPensionNetWithoutPT   = nonPensionGrossWithoutPT - nonPensionTaxWithoutPT;
+
+  // Non-SS ordinary income — used for federal tax in real terms.
+  // Pension is always its year-0 value in real terms (whether or not it has COLA).
+  const nonSSWithPT    = pension + partTimeIncome + rentalIncome;
   const nonSSWithoutPT = pension + rentalIncome;
 
-  // For summary cards — show current (with PT if applicable)
-  const netMonthlyIncome = netIncomeWithPT;
-  const stateTaxMonthly = taxWithPT;
+  // For summary cards (year-0, with part-time)
+  const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly;
+  const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax;
 
   const adjustedExpenses = (baseNonHealthcareNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
   const monthlyGap = totalMonthlyNeed - netMonthlyIncome;
-  const totalLiquidAssets = savings401k + iraBalance + taxableInvestments;
+  const totalLiquidAssets = trad401k + roth401k + tradIRA + rothIRA + taxableBrokerage;
 
   const yearsData = [];
   let portfolio = totalLiquidAssets;
@@ -122,13 +127,21 @@ export function runProjection(inputs) {
 
   const portfolioAtRetirement = Math.round(portfolio);
 
+  // Initialize drawdown buckets proportional to accumulation growth.
+  // All asset types grow at the same expected return during accumulation.
+  const growthFactor = totalLiquidAssets > 0 ? portfolioAtRetirement / totalLiquidAssets : 1;
+  let taxableBucket = taxableBrokerage * growthFactor;
+  let tradBucket    = (trad401k + tradIRA) * growthFactor;
+  let rothBucket    = (roth401k + rothIRA) * growthFactor;
+
   // ── Phase 2: Drawdown (retirementAge → effectiveLifeExpectancy + buffer) ────
   // For combined projections the household needs money until the last survivor dies.
   const effectiveLifeExpectancy = hasSpouse
     ? Math.max(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
     : lifeExpectancy;
 
-  const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 15, 30);
+  // +30 buffer: ensures well-funded portfolios show meaningful runway beyond life expectancy
+  const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 30, 30);
 
   for (let y = 0; y <= yearsToProject; y++) {
     const currentYear = new Date().getFullYear() + accumulationYears + y;
@@ -146,26 +159,89 @@ export function runProjection(inputs) {
       baseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC;
     const ptEnded = ageInYear >= partTimeEndAge;
-    const currentNetIncome = ptEnded ? netIncomeWithoutPT : netIncomeWithPT;
-    const yearlyIncome = currentNetIncome * 12 * generalFactor;
+    const baseNonPensionNet = ptEnded ? nonPensionNetWithoutPT : nonPensionNetWithPT;
+    const pensionContrib = pensionCOLA
+      ? pensionNetMonthly * 12 * generalFactor   // COLA: inflates with general inflation
+      : pensionNetMonthly * 12;                  // Fixed: stays flat in nominal dollars
+    const yearlyIncome = (baseNonPensionNet * 12 * generalFactor) + pensionContrib;
 
     // Estimate portfolio withdrawal needed before accounting for federal tax
     const preTaxGap = Math.max(yearlyNeed - yearlyIncome, 0);
 
     // Federal tax on all income sources + estimated withdrawal from savings
     const currentNonSS = ptEnded ? nonSSWithoutPT : nonSSWithPT;
-    const federalTax = estimateFederalTax({
-      ssAnnual: ssMonthly * 12 * generalFactor,
-      ordinaryIncome: currentNonSS * 12 * generalFactor,
-      withdrawalEstimate: preTaxGap,
-      married: hasSpouse,
-      age: ageInYear,
-    });
 
-    // Actual withdrawal covers both the spending gap and the federal tax bill
-    const yearlyWithdrawal = preTaxGap + federalTax;
-    const growth = portfolio * (investmentReturn / 100);
-    portfolio = portfolio + growth - yearlyWithdrawal;
+    // Work in real (year-0 dollar) terms — equivalent to inflating brackets each year.
+    // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
+    // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
+    const realSS       = ssMonthly * 12;
+    const realOrdinary = currentNonSS * 12;
+
+    // --- Per-bucket growth (grow first, then withdraw — matches existing loop structure) ---
+    const bucketGrowthRate = investmentReturn / 100;
+    taxableBucket += taxableBucket * bucketGrowthRate;
+    tradBucket    += tradBucket    * bucketGrowthRate;
+    rothBucket    += rothBucket    * bucketGrowthRate;
+
+    // --- Step 1: Spending allocation across buckets (taxable → Traditional → Roth) ---
+    // Allocate only the net spending gap. Taxes computed from this split avoid circular dependency.
+    const taxableSpend = Math.min(taxableBucket, preTaxGap);
+    const remaining1   = preTaxGap - taxableSpend;
+    const tradSpend    = Math.min(tradBucket, remaining1);
+    const rothSpend    = Math.min(rothBucket, remaining1 - tradSpend);
+
+    // --- Step 2: Tax computation based on spending split ---
+    const stateTaxRate = stateInfo.incomeTax;
+
+    // State tax on Traditional spending (flat-rate gross-up is exact)
+    const tradGross      = stateTaxRate < 1 ? tradSpend / (1 - stateTaxRate) : tradSpend;
+    const stateTaxOnTrad = tradGross - tradSpend;
+
+    // Federal tax — two-iteration real-terms gross-up
+    const realTradGross    = tradGross / generalFactor;
+    const realCapGains     = (taxableSpend * 0.60) / generalFactor;
+    const { tax: realFed1 } = estimateFederalTax({
+      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      withdrawalEstimate: realTradGross, capitalGains: realCapGains,
+      married: hasSpouse, age: ageInYear,
+    });
+    const { tax: realFed2, taxableSS } = estimateFederalTax({
+      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      withdrawalEstimate: realTradGross + realFed1, capitalGains: realCapGains,
+      married: hasSpouse, age: ageInYear,
+    });
+    const federalTax = realFed2 * generalFactor;
+
+    // Capital gains tax on taxable brokerage withdrawal (60% assumed gains, real terms)
+    const capGainsTax = estimateCapitalGainsTax({
+      taxableGains: (taxableSpend * 0.60) / generalFactor,
+      totalOrdinaryIncome: realOrdinary + (tradGross / generalFactor) + taxableSS,
+      married: hasSpouse,
+    }) * generalFactor;
+
+    // --- Step 3: Total portfolio deduction ---
+    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + federalTax;
+
+    // --- Bucket balance updates ---
+    taxableBucket -= taxableSpend;
+    tradBucket    -= tradGross;   // gross amount (includes state tax)
+    rothBucket    -= rothSpend;
+
+    // Remaining taxes drawn from buckets in same order
+    let taxesLeft = capGainsTax + federalTax;
+    const taxFromTaxable = Math.min(taxableBucket, taxesLeft);
+    taxableBucket -= taxFromTaxable;
+    taxesLeft     -= taxFromTaxable;
+    const taxFromTrad = Math.min(tradBucket, taxesLeft);
+    tradBucket    -= taxFromTrad;
+    taxesLeft     -= taxFromTrad;
+    rothBucket    -= Math.min(rothBucket, taxesLeft);
+
+    // Clamp to zero, recompute portfolio
+    taxableBucket = Math.max(taxableBucket, 0);
+    tradBucket    = Math.max(tradBucket,    0);
+    rothBucket    = Math.max(rothBucket,    0);
+    portfolio     = taxableBucket + tradBucket + rothBucket;
 
     yearsData.push({
       year: currentYear,
@@ -183,13 +259,15 @@ export function runProjection(inputs) {
   const runwayYears = runOutYear ? runOutYear - retirementAge : yearsToProject;
 
   // Year-0 federal tax estimate for summary display
-  const federalTaxMonthly = Math.round(estimateFederalTax({
+  const { tax: federalTaxAnnual } = estimateFederalTax({
     ssAnnual: ssMonthly * 12,
     ordinaryIncome: nonSSWithPT * 12,
     withdrawalEstimate: Math.max(monthlyGap, 0) * 12,
+    capitalGains: 0,
     married: hasSpouse,
     age: retirementAge,
-  }) / 12);
+  });
+  const federalTaxMonthly = Math.round(federalTaxAnnual / 12);
 
   return {
     totalMonthlyExpenses: Math.round(totalMonthlyExpenses),

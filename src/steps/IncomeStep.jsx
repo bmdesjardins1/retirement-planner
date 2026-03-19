@@ -10,6 +10,7 @@ export default function IncomeStep() {
     ss1, setSs1,
     ss2, setSs2,
     pension, setPension,
+    pensionCOLA, setPensionCOLA,
     partTimeIncome, setPartTimeIncome,
     partTimeEndAge, setPartTimeEndAge,
     rentalIncome, setRentalIncome,
@@ -32,6 +33,16 @@ export default function IncomeStep() {
         <Card>
           <h3 className="card-heading card-heading--purple">Other Income</h3>
           <SliderInput label="Pension"          value={pension}         min={0} max={5000} step={50}  onChange={setPension}         prefix="$" suffix="/mo" />
+          {pension > 0 && (
+            <div className="mb-20">
+              <label className="field-label">Does this pension increase with inflation each year?</label>
+              <p className="field-note">Most pensions pay a fixed dollar amount for life. Some government pensions include annual cost-of-living increases.</p>
+              <div className="toggle-group">
+                <button className={`toggle${pensionCOLA ? ' toggle--active' : ''}`} onClick={() => setPensionCOLA(true)}>Yes</button>
+                <button className={`toggle${!pensionCOLA ? ' toggle--active' : ''}`} onClick={() => setPensionCOLA(false)}>No (fixed)</button>
+              </div>
+            </div>
+          )}
           <SliderInput label="Part-Time Work"   value={partTimeIncome}  min={0} max={5000} step={100} onChange={setPartTimeIncome}  prefix="$" suffix="/mo" />
           {partTimeIncome > 0 && (
             <SliderInput
