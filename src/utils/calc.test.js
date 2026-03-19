@@ -50,3 +50,24 @@ describe('Fix 1: healthcare survivorFactor', () => {
     expect(solo.adjustedExpenses).toBeCloseTo(combined.adjustedExpenses * 0.6, -1);
   });
 });
+
+describe('Fix 2+3: federal bracket inflation + gross-up', () => {
+  it('high inflation does not collapse runway due to bracket creep', () => {
+    // Before fix: 6% inflation inflates nominal income ~5x over 30 years; brackets stay fixed → heavy taxation
+    // After fix: real-term income stays flat → tax burden is proportional
+    const highInflation = runProjection({ ...BASE, inflation: 6, investmentReturn: 8 });
+    const lowInflation  = runProjection({ ...BASE, inflation: 1, investmentReturn: 4 });
+    expect(highInflation.runwayYears).toBeGreaterThan(5);
+    expect(lowInflation.runwayYears).toBeGreaterThan(5);
+    // Neither should be dramatically shorter — inflation fix keeps real purchasing power comparable
+    expect(highInflation.runwayYears / lowInflation.runwayYears).toBeGreaterThan(0.6);
+  });
+
+  it('withdrawal is at least as large as the spending gap', () => {
+    const result = runProjection({ ...BASE, ss1: 1000 });
+    const drawdownYears = result.yearsData.filter(y => y.withdrawal > 0);
+    drawdownYears.forEach(y => {
+      expect(y.withdrawal).toBeGreaterThanOrEqual(Math.max(y.expenses - y.income, 0) - 1);
+    });
+  });
+});

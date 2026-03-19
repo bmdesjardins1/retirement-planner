@@ -154,13 +154,29 @@ export function runProjection(inputs) {
 
     // Federal tax on all income sources + estimated withdrawal from savings
     const currentNonSS = ptEnded ? nonSSWithoutPT : nonSSWithPT;
-    const federalTax = estimateFederalTax({
-      ssAnnual: ssMonthly * 12 * generalFactor,
-      ordinaryIncome: currentNonSS * 12 * generalFactor,
-      withdrawalEstimate: preTaxGap,
-      married: hasSpouse,
-      age: ageInYear,
+
+    // Work in real (year-0 dollar) terms — equivalent to inflating brackets each year.
+    // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
+    // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
+    const realSS       = ssMonthly * 12;
+    const realOrdinary = currentNonSS * 12;  // ← updated in Task 4 when pension is split out
+    const realGap      = preTaxGap / generalFactor;
+
+    // Iteration 1: tax on net gap
+    const realTax1 = estimateFederalTax({
+      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      withdrawalEstimate: realGap,
+      married: hasSpouse, age: ageInYear,
     });
+
+    // Iteration 2: gross up — gap + iter-1 tax
+    const realTax2 = estimateFederalTax({
+      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      withdrawalEstimate: realGap + realTax1,
+      married: hasSpouse, age: ageInYear,
+    });
+
+    const federalTax     = realTax2 * generalFactor;
 
     // Actual withdrawal covers both the spending gap and the federal tax bill
     const yearlyWithdrawal = preTaxGap + federalTax;
