@@ -72,6 +72,8 @@ homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
 stateInfo,
 ```
 
+Note: `stateInfo` (not `state`) is the correct dep. `stateInfo` is derived synchronously as `STATE_DATA[state]` before the `useMemo` runs — React's render-order guarantee means `stateInfo` is already updated when the memo evaluates. Listing `state` separately would be redundant.
+
 No behavioral change — only readability and maintainability. The `...sharedInputs` spread inside the `runProjection()` calls is unchanged.
 
 ---
@@ -88,7 +90,7 @@ No behavioral change — only readability and maintainability. The `...sharedInp
 - Only one tab visible at a time — shows 5 `AccountTypeBlock`s + 4 contribution sliders for that person
 - When `hasSpouse` is false, no tabs — just the "Your Accounts" content directly
 - Tab state is local UI state (`useState`) inside `AssetsStep`, not in PlannerContext
-- The Real Estate & Growth card and the Summary card below remain unchanged
+- The Real Estate & Growth card and the Summary card below remain unchanged — copy the Summary card JSX verbatim from the current file, including its `hasSpouse` conditional that shows `spouseResults.portfolioAtRetirement`
 
 ### 2B — Step navigation: numbered steps with connector
 
@@ -112,7 +114,9 @@ Four targeted fixes — no layout changes:
 
 **i. Age axis range**
 - `chartData` in `ResultsStep.jsx` is currently built from all `yearsData` entries, which runs to `effectiveLifeExpectancy + 30` (changed during the calculation audit)
-- Fix: filter `chartData` to only include entries where `age <= max(lifeExpectancy, spouseLifeExpectancy) + 5`
+- Fix: filter `chartData` to only include entries where `age <= Math.max(lifeExpectancy, spouseLifeExpOnPrimaryAxis) + 5`
+- `spouseLifeExpOnPrimaryAxis` is already computed in `ResultsStep.jsx`: `age + (spouseLifeExpectancy - spouseAge)` — this converts the spouse's death age into the primary person's age axis. Using raw `spouseLifeExpectancy` would be incorrect when the spouse is younger than the primary user.
+- When `hasSpouse` is false, use `lifeExpectancy + 5` only.
 - This caps the portfolio chart x-axis at a sensible age (e.g. 93 not 118)
 
 **ii. Legend + axis label overlap (portfolio chart)**
@@ -121,7 +125,12 @@ Four targeted fixes — no layout changes:
 
 **iii. Reference line label collisions (portfolio chart)**
 - Four reference lines (Your Retirement, Spouse Retirement, Your Life Exp., Spouse Life Exp.) can overlap when ages are close
-- Fix: shorten labels to "Retire" / "Spouse Retire" / "Life Exp." / "Spouse Exp."; use `position="insideTopRight"` on even-indexed lines and `position="insideTopLeft"` on odd-indexed to stagger them
+- Fix: shorten label text and assign explicit positions per label (not by index, since lines are conditionally rendered):
+  - "Your Retirement" → `position="insideTopRight"`
+  - "Spouse Retire" → `position="insideTopLeft"`
+  - "Life Exp." → `position="insideTopRight"`
+  - "Spouse Life Exp." → `position="insideTopLeft"`
+- Positions alternate R/L/R/L across all four lines in x-axis order (retirement ages appear before life expectancies), so no two consecutive lines share the same side in any rendered subset
 
 **iv. Bar chart legend + axis label overlap**
 - Same root cause as (ii)
