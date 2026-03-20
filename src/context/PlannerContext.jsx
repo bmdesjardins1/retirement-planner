@@ -124,7 +124,11 @@ export function PlannerProvider({ children }) {
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
-    ...Object.values(sharedInputs),
+    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    housing, food, healthcare, transport, leisure, other,
+    longTermCare, ltcStartAge,
+    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    stateInfo,
   ]);
 
   // Primary solo — primary assets + contributions, 60% expenses
@@ -148,7 +152,11 @@ export function PlannerProvider({ children }) {
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
-    ...Object.values(sharedInputs),
+    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    housing, food, healthcare, transport, leisure, other,
+    longTermCare, ltcStartAge,
+    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    stateInfo,
   ]);
 
   // Spouse solo — spouse assets + contributions, spouse's own timeline, 60% expenses
@@ -173,7 +181,11 @@ export function PlannerProvider({ children }) {
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
-    ...Object.values(sharedInputs),
+    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    housing, food, healthcare, transport, leisure, other,
+    longTermCare, ltcStartAge,
+    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    stateInfo,
   ]);
 
   return (
