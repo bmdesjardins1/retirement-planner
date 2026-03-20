@@ -207,8 +207,8 @@ input[type="range"]::-webkit-slider-thumb {
 .mt-28 { margin-top: 28px; }
 .mb-0  { margin-bottom: 0;     }
 .mb-8  { margin-bottom: 8px;   }
-.mb-20 { margin-bottom: 20px;  }
-.mb-28 { margin-bottom: 28px;  }
+.mb-20 { margin-bottom: 14px;  }
+.mb-28 { margin-bottom: 20px;  }
 .ml-auto { margin-left: auto; }
 
 /* === COLOR UTILITIES === */
@@ -228,7 +228,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(51, 65, 85, 0.8);
   border-radius: 16px;
-  padding: 28px;
+  padding: 20px 24px;
   backdrop-filter: blur(12px);
 }
 
@@ -308,17 +308,18 @@ input[type="range"]::-webkit-slider-thumb {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 /* === TOGGLE === */
 .toggle-group {
   display: flex;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
 .toggle {
-  padding: 10px 20px;
+  padding: 7px 16px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
@@ -375,7 +376,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* === SLIDER === */
 .slider-field {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .slider-header {
