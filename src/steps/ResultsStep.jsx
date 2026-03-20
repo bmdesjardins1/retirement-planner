@@ -23,6 +23,10 @@ export default function ResultsStep() {
     ? Math.round((results.yearsData.find(d => d.age >= ltcStartAge)?.expenses ?? 0) / 12)
     : 0;
 
+  // Convert spouse ages to primary person's age axis
+  const spouseRetirementOnPrimaryAxis = age + (spouseRetirementAge - spouseAge);
+  const spouseLifeExpOnPrimaryAxis    = age + (spouseLifeExpectancy - spouseAge);
+
   // Merge the three yearsData arrays by index (each index = one calendar year from today)
   const maxLen = Math.max(
     results.yearsData.length,
@@ -39,10 +43,10 @@ export default function ResultsStep() {
       spouse: spouseResults?.yearsData[i]?.portfolio ?? 0,
     };
   });
-
-  // Convert spouse ages to primary person's age axis
-  const spouseRetirementOnPrimaryAxis = age + (spouseRetirementAge - spouseAge);
-  const spouseLifeExpOnPrimaryAxis    = age + (spouseLifeExpectancy - spouseAge);
+  const chartCutoffAge = hasSpouse
+    ? Math.max(lifeExpectancy, spouseLifeExpOnPrimaryAxis) + 5
+    : lifeExpectancy + 5;
+  const visibleChartData = chartData.filter(d => d.age <= chartCutoffAge);
 
   return (
     <div>
@@ -93,7 +97,7 @@ export default function ResultsStep() {
       <Card className="mb-28">
         <h3 className="chart-heading">Portfolio Value Over Time</h3>
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 24, left: 8 }}>
+          <AreaChart data={visibleChartData} margin={{ top: 4, right: 8, bottom: 40, left: 16 }}>
             <defs>
               <linearGradient id="portGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#34d399" stopOpacity={0.3} />
@@ -117,12 +121,32 @@ export default function ResultsStep() {
               labelFormatter={v => `Age ${v}`}
               formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
             />
-            <Legend wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
 
-            <ReferenceLine x={retirementAge} stroke="#818cf8" strokeDasharray="4 4" label={{ value: "Your Retirement", fill: "#818cf8", fontSize: 10 }} />
-            {hasSpouse && <ReferenceLine x={spouseRetirementOnPrimaryAxis} stroke="#60a5fa" strokeDasharray="4 4" label={{ value: "Spouse Retirement", fill: "#60a5fa", fontSize: 10 }} />}
-            <ReferenceLine x={lifeExpectancy} stroke="#f43f5e" strokeDasharray="4 4" label={{ value: "Your Life Exp.", fill: "#f43f5e", fontSize: 10 }} />
-            {hasSpouse && <ReferenceLine x={spouseLifeExpOnPrimaryAxis} stroke="#fb923c" strokeDasharray="4 4" label={{ value: "Spouse Life Exp.", fill: "#fb923c", fontSize: 10 }} />}
+            <ReferenceLine
+              x={retirementAge}
+              stroke="#818cf8" strokeDasharray="4 4"
+              label={{ value: "Your Retirement", fill: "#818cf8", fontSize: 10, position: "insideTopRight" }}
+            />
+            {hasSpouse && (
+              <ReferenceLine
+                x={spouseRetirementOnPrimaryAxis}
+                stroke="#60a5fa" strokeDasharray="4 4"
+                label={{ value: "Spouse Retire", fill: "#60a5fa", fontSize: 10, position: "insideTopLeft" }}
+              />
+            )}
+            <ReferenceLine
+              x={lifeExpectancy}
+              stroke="#f43f5e" strokeDasharray="4 4"
+              label={{ value: "Life Exp.", fill: "#f43f5e", fontSize: 10, position: "insideTopRight" }}
+            />
+            {hasSpouse && (
+              <ReferenceLine
+                x={spouseLifeExpOnPrimaryAxis}
+                stroke="#fb923c" strokeDasharray="4 4"
+                label={{ value: "Spouse Life Exp.", fill: "#fb923c", fontSize: 10, position: "insideTopLeft" }}
+              />
+            )}
 
             <Area type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} fill="url(#portGrad)" dot={false} name="Combined" />
             <Area type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="You" />
@@ -142,7 +166,7 @@ export default function ResultsStep() {
         <ResponsiveContainer width="100%" height={240}>
           <BarChart
             data={results.yearsData.filter(d => d.age >= retirementAge && (d.age - retirementAge) % 5 === 0)}
-            margin={{ top: 4, right: 8, bottom: 24, left: 8 }}
+            margin={{ top: 4, right: 8, bottom: 40, left: 16 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
             <XAxis
@@ -160,7 +184,7 @@ export default function ResultsStep() {
               labelFormatter={v => `Age ${v}`}
               formatter={v => `$${v.toLocaleString()}`}
             />
-            <Legend wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
             <Bar dataKey="income"   fill="rgba(52,211,153,0.7)" name="Income Sources" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" fill="rgba(244,63,94,0.6)"  name="Expenses"       radius={[4, 4, 0, 0]} />
           </BarChart>
