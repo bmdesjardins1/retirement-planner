@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { usePlanner } from "../context/PlannerContext";
 import SliderInput from "../components/SliderInput";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
+import AccountTypeBlock from "../components/AccountTypeBlock";
 
 export default function AssetsStep() {
   const {
@@ -47,67 +49,45 @@ export default function AssetsStep() {
     <div>
       <SectionTitle sub="Your investable assets and how they might grow.">Assets & Investments</SectionTitle>
 
-      {/* Retirement accounts row — yours + spouse's side by side */}
       <div className={`grid-2 mb-28`}>
         <Card>
           <h3 className="card-heading card-heading--green">Your Retirement Accounts</h3>
-
-          {/* Traditional 401(k) */}
-          <div className="mb-20">
-            <label className="field-label">Traditional 401(k) / 403(b)</label>
-            <p className="field-note">Pre-tax retirement account through your employer. Withdrawals are taxed as regular income.</p>
-            <div className="toggle-group">
-              <button className={`toggle${hasTrad401k ? ' toggle--active' : ''}`} onClick={() => setHasTrad401k(true)}>I have this</button>
-              <button className={`toggle${!hasTrad401k ? ' toggle--active' : ''}`} onClick={() => setHasTrad401k(false)}>I don't</button>
-            </div>
-            {hasTrad401k && <SliderInput label="Current Balance" value={trad401k} min={0} max={2000000} step={10000} onChange={setTrad401k} prefix="$" />}
-          </div>
-
-          {/* Roth 401(k) */}
-          <div className="mb-20">
-            <label className="field-label">Roth 401(k) / 403(b)</label>
-            <p className="field-note">After-tax employer retirement account. Withdrawals are completely tax-free.</p>
-            <div className="toggle-group">
-              <button className={`toggle${hasRoth401k ? ' toggle--active' : ''}`} onClick={() => setHasRoth401k(true)}>I have this</button>
-              <button className={`toggle${!hasRoth401k ? ' toggle--active' : ''}`} onClick={() => setHasRoth401k(false)}>I don't</button>
-            </div>
-            {hasRoth401k && <SliderInput label="Current Balance" value={roth401k} min={0} max={2000000} step={10000} onChange={setRoth401k} prefix="$" />}
-          </div>
-
-          {/* Traditional IRA */}
-          <div className="mb-20">
-            <label className="field-label">Traditional IRA</label>
-            <p className="field-note">Pre-tax individual retirement account — a tax-advantaged savings account you open yourself, not through an employer. Withdrawals are taxed as regular income.</p>
-            <div className="toggle-group">
-              <button className={`toggle${hasTradIRA ? ' toggle--active' : ''}`} onClick={() => setHasTradIRA(true)}>I have this</button>
-              <button className={`toggle${!hasTradIRA ? ' toggle--active' : ''}`} onClick={() => setHasTradIRA(false)}>I don't</button>
-            </div>
-            {hasTradIRA && <SliderInput label="Current Balance" value={tradIRA} min={0} max={1000000} step={5000} onChange={setTradIRA} prefix="$" />}
-          </div>
-
-          {/* Roth IRA */}
-          <div className="mb-20">
-            <label className="field-label">Roth IRA</label>
-            <p className="field-note">After-tax individual retirement account. Withdrawals are completely tax-free.</p>
-            <div className="toggle-group">
-              <button className={`toggle${hasRothIRA ? ' toggle--active' : ''}`} onClick={() => setHasRothIRA(true)}>I have this</button>
-              <button className={`toggle${!hasRothIRA ? ' toggle--active' : ''}`} onClick={() => setHasRothIRA(false)}>I don't</button>
-            </div>
-            {hasRothIRA && <SliderInput label="Current Balance" value={rothIRA} min={0} max={1000000} step={5000} onChange={setRothIRA} prefix="$" />}
-          </div>
-
-          {/* Taxable Brokerage */}
-          <div className="mb-20">
-            <label className="field-label">Brokerage / Investment Account</label>
-            <p className="field-note">Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates.</p>
-            <div className="toggle-group">
-              <button className={`toggle${hasTaxableBrokerage ? ' toggle--active' : ''}`} onClick={() => setHasTaxableBrokerage(true)}>I have this</button>
-              <button className={`toggle${!hasTaxableBrokerage ? ' toggle--active' : ''}`} onClick={() => setHasTaxableBrokerage(false)}>I don't</button>
-            </div>
-            {hasTaxableBrokerage && <SliderInput label="Current Balance" value={taxableBrokerage} min={0} max={1000000} step={5000} onChange={setTaxableBrokerage} prefix="$" note="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account." />}
-          </div>
-
-          {/* Contribution sliders — unchanged */}
+          <AccountTypeBlock
+            label="Traditional 401(k) / 403(b)"
+            note="Pre-tax retirement account through your employer. Withdrawals are taxed as regular income."
+            hasAccount={hasTrad401k} onToggle={setHasTrad401k}
+            balance={trad401k} onBalanceChange={setTrad401k}
+            max={2000000} step={10000}
+          />
+          <AccountTypeBlock
+            label="Roth 401(k) / 403(b)"
+            note="After-tax employer retirement account. Withdrawals are completely tax-free."
+            hasAccount={hasRoth401k} onToggle={setHasRoth401k}
+            balance={roth401k} onBalanceChange={setRoth401k}
+            max={2000000} step={10000}
+          />
+          <AccountTypeBlock
+            label="Traditional IRA"
+            note="Pre-tax individual retirement account — a tax-advantaged savings account you open yourself, not through an employer. Withdrawals are taxed as regular income."
+            hasAccount={hasTradIRA} onToggle={setHasTradIRA}
+            balance={tradIRA} onBalanceChange={setTradIRA}
+            max={1000000} step={5000}
+          />
+          <AccountTypeBlock
+            label="Roth IRA"
+            note="After-tax individual retirement account. Withdrawals are completely tax-free."
+            hasAccount={hasRothIRA} onToggle={setHasRothIRA}
+            balance={rothIRA} onBalanceChange={setRothIRA}
+            max={1000000} step={5000}
+          />
+          <AccountTypeBlock
+            label="Brokerage / Investment Account"
+            note="Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates."
+            hasAccount={hasTaxableBrokerage} onToggle={setHasTaxableBrokerage}
+            balance={taxableBrokerage} onBalanceChange={setTaxableBrokerage}
+            max={1000000} step={5000}
+            balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
+          />
           <SliderInput label="Annual 401(k) Contribution" value={annualContrib401k} min={0} max={30000} step={500} onChange={setAnnualContrib401k} prefix="$" suffix="/yr"
             note="2024 limit: $23,000 ($30,500 if age 50+)." />
           <SliderInput label="Employer Contributions / yr" value={employerMatch} min={0} max={15000} step={500} onChange={setEmployerMatch} prefix="$" suffix="/yr"
@@ -121,63 +101,42 @@ export default function AssetsStep() {
         {hasSpouse && (
           <Card>
             <h3 className="card-heading card-heading--blue">Spouse Retirement Accounts</h3>
-
-            {/* Spouse Traditional 401(k) */}
-            <div className="mb-20">
-              <label className="field-label">Traditional 401(k) / 403(b)</label>
-              <p className="field-note">Pre-tax retirement account through your spouse's employer. Withdrawals are taxed as regular income.</p>
-              <div className="toggle-group">
-                <button className={`toggle${spouseHasTrad401k ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTrad401k(true)}>I have this</button>
-                <button className={`toggle${!spouseHasTrad401k ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTrad401k(false)}>I don't</button>
-              </div>
-              {spouseHasTrad401k && <SliderInput label="Current Balance" value={spouseTrad401k} min={0} max={2000000} step={10000} onChange={setSpouseTrad401k} prefix="$" />}
-            </div>
-
-            {/* Spouse Roth 401(k) */}
-            <div className="mb-20">
-              <label className="field-label">Roth 401(k) / 403(b)</label>
-              <p className="field-note">After-tax employer retirement account. Withdrawals are completely tax-free.</p>
-              <div className="toggle-group">
-                <button className={`toggle${spouseHasRoth401k ? ' toggle--active' : ''}`} onClick={() => setSpouseHasRoth401k(true)}>I have this</button>
-                <button className={`toggle${!spouseHasRoth401k ? ' toggle--active' : ''}`} onClick={() => setSpouseHasRoth401k(false)}>I don't</button>
-              </div>
-              {spouseHasRoth401k && <SliderInput label="Current Balance" value={spouseRoth401k} min={0} max={2000000} step={10000} onChange={setSpouseRoth401k} prefix="$" />}
-            </div>
-
-            {/* Spouse Traditional IRA */}
-            <div className="mb-20">
-              <label className="field-label">Traditional IRA</label>
-              <p className="field-note">Pre-tax individual retirement account — a tax-advantaged savings account your spouse opens themselves, not through an employer. Withdrawals are taxed as regular income.</p>
-              <div className="toggle-group">
-                <button className={`toggle${spouseHasTradIRA ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTradIRA(true)}>I have this</button>
-                <button className={`toggle${!spouseHasTradIRA ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTradIRA(false)}>I don't</button>
-              </div>
-              {spouseHasTradIRA && <SliderInput label="Current Balance" value={spouseTradIRA} min={0} max={1000000} step={5000} onChange={setSpouseTradIRA} prefix="$" />}
-            </div>
-
-            {/* Spouse Roth IRA */}
-            <div className="mb-20">
-              <label className="field-label">Roth IRA</label>
-              <p className="field-note">After-tax individual retirement account. Withdrawals are completely tax-free.</p>
-              <div className="toggle-group">
-                <button className={`toggle${spouseHasRothIRA ? ' toggle--active' : ''}`} onClick={() => setSpouseHasRothIRA(true)}>I have this</button>
-                <button className={`toggle${!spouseHasRothIRA ? ' toggle--active' : ''}`} onClick={() => setSpouseHasRothIRA(false)}>I don't</button>
-              </div>
-              {spouseHasRothIRA && <SliderInput label="Current Balance" value={spouseRothIRA} min={0} max={1000000} step={5000} onChange={setSpouseRothIRA} prefix="$" />}
-            </div>
-
-            {/* Spouse Taxable Brokerage */}
-            <div className="mb-20">
-              <label className="field-label">Brokerage / Investment Account</label>
-              <p className="field-note">Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates.</p>
-              <div className="toggle-group">
-                <button className={`toggle${spouseHasTaxableBrokerage ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTaxableBrokerage(true)}>I have this</button>
-                <button className={`toggle${!spouseHasTaxableBrokerage ? ' toggle--active' : ''}`} onClick={() => setSpouseHasTaxableBrokerage(false)}>I don't</button>
-              </div>
-              {spouseHasTaxableBrokerage && <SliderInput label="Current Balance" value={spouseTaxableBrokerage} min={0} max={1000000} step={5000} onChange={setSpouseTaxableBrokerage} prefix="$" note="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account." />}
-            </div>
-
-            {/* Spouse contribution sliders — unchanged */}
+            <AccountTypeBlock
+              label="Traditional 401(k) / 403(b)"
+              note="Pre-tax retirement account through your spouse's employer. Withdrawals are taxed as regular income."
+              hasAccount={spouseHasTrad401k} onToggle={setSpouseHasTrad401k}
+              balance={spouseTrad401k} onBalanceChange={setSpouseTrad401k}
+              max={2000000} step={10000}
+            />
+            <AccountTypeBlock
+              label="Roth 401(k) / 403(b)"
+              note="After-tax employer retirement account. Withdrawals are completely tax-free."
+              hasAccount={spouseHasRoth401k} onToggle={setSpouseHasRoth401k}
+              balance={spouseRoth401k} onBalanceChange={setSpouseRoth401k}
+              max={2000000} step={10000}
+            />
+            <AccountTypeBlock
+              label="Traditional IRA"
+              note="Pre-tax individual retirement account — a tax-advantaged savings account your spouse opens themselves, not through an employer. Withdrawals are taxed as regular income."
+              hasAccount={spouseHasTradIRA} onToggle={setSpouseHasTradIRA}
+              balance={spouseTradIRA} onBalanceChange={setSpouseTradIRA}
+              max={1000000} step={5000}
+            />
+            <AccountTypeBlock
+              label="Roth IRA"
+              note="After-tax individual retirement account. Withdrawals are completely tax-free."
+              hasAccount={spouseHasRothIRA} onToggle={setSpouseHasRothIRA}
+              balance={spouseRothIRA} onBalanceChange={setSpouseRothIRA}
+              max={1000000} step={5000}
+            />
+            <AccountTypeBlock
+              label="Brokerage / Investment Account"
+              note="Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates."
+              hasAccount={spouseHasTaxableBrokerage} onToggle={setSpouseHasTaxableBrokerage}
+              balance={spouseTaxableBrokerage} onBalanceChange={setSpouseTaxableBrokerage}
+              max={1000000} step={5000}
+              balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
+            />
             <SliderInput label="Annual Spouse 401(k) Contribution" value={spouseAnnualContrib401k} min={0} max={30000} step={500} onChange={setSpouseAnnualContrib401k} prefix="$" suffix="/yr"
               note="2024 limit: $23,000 ($30,500 if age 50+)." />
             <SliderInput label="Spouse Employer Contributions / yr" value={spouseEmployerMatch} min={0} max={15000} step={500} onChange={setSpouseEmployerMatch} prefix="$" suffix="/yr"
@@ -190,10 +149,9 @@ export default function AssetsStep() {
         )}
       </div>
 
-      {/* Real Estate & Growth — full row */}
+      {/* Real Estate & Growth — unchanged */}
       <Card className="mb-28">
         <h3 className="card-heading card-heading--purple">Real Estate & Growth</h3>
-
         <div className="grid-2">
           <div>
             <div className="mb-20">
@@ -203,7 +161,6 @@ export default function AssetsStep() {
                 <button className={`toggle${!homeOwned ? " toggle--active" : ""}`} onClick={() => setHomeOwned(false)}>Rent</button>
               </div>
             </div>
-
             {homeOwned && (
               <SliderInput
                 label="Home Value" value={homeValue} min={50000} max={1500000} step={10000}
@@ -212,7 +169,6 @@ export default function AssetsStep() {
               />
             )}
           </div>
-
           <div>
             <SliderInput label="Expected Return" value={investmentReturn} min={2} max={10}  step={0.5} onChange={setInvestmentReturn} suffix="% / yr"
               note="Conservative: 4-5%. Moderate: 6-7%. Aggressive: 8%+" />
@@ -224,7 +180,7 @@ export default function AssetsStep() {
         </div>
       </Card>
 
-      {/* Summary */}
+      {/* Summary — preserved verbatim */}
       <Card>
         <div className="assets-total-label">Combined Total Liquid Assets</div>
         <div className="assets-total-value">${results.totalLiquidAssets.toLocaleString()}</div>
