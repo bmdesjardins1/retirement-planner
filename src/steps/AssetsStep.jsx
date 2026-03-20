@@ -6,6 +6,7 @@ import SectionTitle from "../components/SectionTitle";
 import AccountTypeBlock from "../components/AccountTypeBlock";
 
 export default function AssetsStep() {
+  const [activeTab, setActiveTab] = useState('primary');
   const {
     trad401k, setTrad401k,
     roth401k, setRoth401k,
@@ -49,58 +50,76 @@ export default function AssetsStep() {
     <div>
       <SectionTitle sub="Your investable assets and how they might grow.">Assets & Investments</SectionTitle>
 
-      <div className={`grid-2 mb-28`}>
-        <Card>
-          <h3 className="card-heading card-heading--green">Your Retirement Accounts</h3>
-          <AccountTypeBlock
-            label="Traditional 401(k) / 403(b)"
-            note="Pre-tax retirement account through your employer. Withdrawals are taxed as regular income."
-            hasAccount={hasTrad401k} onToggle={setHasTrad401k}
-            balance={trad401k} onBalanceChange={setTrad401k}
-            max={2000000} step={10000}
-          />
-          <AccountTypeBlock
-            label="Roth 401(k) / 403(b)"
-            note="After-tax employer retirement account. Withdrawals are completely tax-free."
-            hasAccount={hasRoth401k} onToggle={setHasRoth401k}
-            balance={roth401k} onBalanceChange={setRoth401k}
-            max={2000000} step={10000}
-          />
-          <AccountTypeBlock
-            label="Traditional IRA"
-            note="Pre-tax individual retirement account — a tax-advantaged savings account you open yourself, not through an employer. Withdrawals are taxed as regular income."
-            hasAccount={hasTradIRA} onToggle={setHasTradIRA}
-            balance={tradIRA} onBalanceChange={setTradIRA}
-            max={1000000} step={5000}
-          />
-          <AccountTypeBlock
-            label="Roth IRA"
-            note="After-tax individual retirement account. Withdrawals are completely tax-free."
-            hasAccount={hasRothIRA} onToggle={setHasRothIRA}
-            balance={rothIRA} onBalanceChange={setRothIRA}
-            max={1000000} step={5000}
-          />
-          <AccountTypeBlock
-            label="Brokerage / Investment Account"
-            note="Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates."
-            hasAccount={hasTaxableBrokerage} onToggle={setHasTaxableBrokerage}
-            balance={taxableBrokerage} onBalanceChange={setTaxableBrokerage}
-            max={1000000} step={5000}
-            balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
-          />
-          <SliderInput label="Annual 401(k) Contribution" value={annualContrib401k} min={0} max={30000} step={500} onChange={setAnnualContrib401k} prefix="$" suffix="/yr"
-            note="2024 limit: $23,000 ($30,500 if age 50+)." />
-          <SliderInput label="Employer Contributions / yr" value={employerMatch} min={0} max={15000} step={500} onChange={setEmployerMatch} prefix="$" suffix="/yr"
-            note="Total your employer contributes to your retirement accounts each year. Check your HR portal or most recent pay stub." />
-          <SliderInput label="Annual IRA Contribution" value={annualContribIRA} min={0} max={8000} step={500} onChange={setAnnualContribIRA} prefix="$" suffix="/yr"
-            note="2024 limit: $7,000 ($8,000 if age 50+). Includes Roth IRA." />
-          <SliderInput label="Annual Other Savings" value={annualContribOther} min={0} max={100000} step={1000} onChange={setAnnualContribOther} prefix="$" suffix="/yr"
-            note="Additional savings to brokerage accounts, savings accounts, or other investments." />
-        </Card>
-
+      <Card className="mb-28">
         {hasSpouse && (
-          <Card>
-            <h3 className="card-heading card-heading--blue">Spouse Retirement Accounts</h3>
+          <div className="account-tabs">
+            <button
+              className={`account-tab${activeTab === 'primary' ? ' account-tab--green' : ''}`}
+              onClick={() => setActiveTab('primary')}
+            >
+              Your Accounts
+            </button>
+            <button
+              className={`account-tab${activeTab === 'spouse' ? ' account-tab--blue' : ''}`}
+              onClick={() => setActiveTab('spouse')}
+            >
+              Spouse Accounts
+            </button>
+          </div>
+        )}
+
+        {(!hasSpouse || activeTab === 'primary') && (
+          <>
+            {!hasSpouse && <h3 className="card-heading card-heading--green">Your Retirement Accounts</h3>}
+            <AccountTypeBlock
+              label="Traditional 401(k) / 403(b)"
+              note="Pre-tax retirement account through your employer. Withdrawals are taxed as regular income."
+              hasAccount={hasTrad401k} onToggle={setHasTrad401k}
+              balance={trad401k} onBalanceChange={setTrad401k}
+              max={2000000} step={10000}
+            />
+            <AccountTypeBlock
+              label="Roth 401(k) / 403(b)"
+              note="After-tax employer retirement account. Withdrawals are completely tax-free."
+              hasAccount={hasRoth401k} onToggle={setHasRoth401k}
+              balance={roth401k} onBalanceChange={setRoth401k}
+              max={2000000} step={10000}
+            />
+            <AccountTypeBlock
+              label="Traditional IRA"
+              note="Pre-tax individual retirement account — a tax-advantaged savings account you open yourself, not through an employer. Withdrawals are taxed as regular income."
+              hasAccount={hasTradIRA} onToggle={setHasTradIRA}
+              balance={tradIRA} onBalanceChange={setTradIRA}
+              max={1000000} step={5000}
+            />
+            <AccountTypeBlock
+              label="Roth IRA"
+              note="After-tax individual retirement account. Withdrawals are completely tax-free."
+              hasAccount={hasRothIRA} onToggle={setHasRothIRA}
+              balance={rothIRA} onBalanceChange={setRothIRA}
+              max={1000000} step={5000}
+            />
+            <AccountTypeBlock
+              label="Brokerage / Investment Account"
+              note="Regular investment account — not retirement-specific. Examples: Fidelity, Vanguard, Schwab taxable accounts. Only the gains portion is taxed when you withdraw, at lower long-term rates."
+              hasAccount={hasTaxableBrokerage} onToggle={setHasTaxableBrokerage}
+              balance={taxableBrokerage} onBalanceChange={setTaxableBrokerage}
+              max={1000000} step={5000}
+              balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
+            />
+            <SliderInput label="Annual 401(k) Contribution" value={annualContrib401k} min={0} max={30000} step={500} onChange={setAnnualContrib401k} prefix="$" suffix="/yr"
+              note="2024 limit: $23,000 ($30,500 if age 50+)." />
+            <SliderInput label="Employer Contributions / yr" value={employerMatch} min={0} max={15000} step={500} onChange={setEmployerMatch} prefix="$" suffix="/yr"
+              note="Total your employer contributes to your retirement accounts each year. Check your HR portal or most recent pay stub." />
+            <SliderInput label="Annual IRA Contribution" value={annualContribIRA} min={0} max={8000} step={500} onChange={setAnnualContribIRA} prefix="$" suffix="/yr"
+              note="2024 limit: $7,000 ($8,000 if age 50+). Includes Roth IRA." />
+            <SliderInput label="Annual Other Savings" value={annualContribOther} min={0} max={100000} step={1000} onChange={setAnnualContribOther} prefix="$" suffix="/yr"
+              note="Additional savings to brokerage accounts, savings accounts, or other investments." />
+          </>
+        )}
+
+        {hasSpouse && activeTab === 'spouse' && (
+          <>
             <AccountTypeBlock
               label="Traditional 401(k) / 403(b)"
               note="Pre-tax retirement account through your spouse's employer. Withdrawals are taxed as regular income."
@@ -145,9 +164,9 @@ export default function AssetsStep() {
               note="2024 limit: $7,000 ($8,000 if age 50+)." />
             <SliderInput label="Spouse Annual Other Savings" value={spouseAnnualContribOther} min={0} max={100000} step={1000} onChange={setSpouseAnnualContribOther} prefix="$" suffix="/yr"
               note="Additional savings to brokerage, savings accounts, etc." />
-          </Card>
+          </>
         )}
-      </div>
+      </Card>
 
       {/* Real Estate & Growth — unchanged */}
       <Card className="mb-28">

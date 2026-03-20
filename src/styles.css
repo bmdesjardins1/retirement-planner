@@ -190,6 +190,39 @@ input[type="range"]::-webkit-slider-thumb {
   backdrop-filter: blur(12px);
 }
 
+/* === ACCOUNT TABS === */
+.account-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  margin: -4px -4px 20px;
+  gap: 0;
+}
+
+.account-tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.account-tab--green {
+  color: #34d399;
+  border-bottom-color: #34d399;
+}
+
+.account-tab--blue {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+}
+
 /* === SECTION TITLE === */
 .section-title {
   margin-bottom: 28px;
