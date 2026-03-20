@@ -15,18 +15,18 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `docs/superpowers/plans/` — implementation plans
 
 ## Active Work
-**Current plan:** `docs/superpowers/plans/2026-03-18-calculation-audit.md`
+**Status:** Refactor & UI polish (7 tasks) complete. Push to main pending.
 
-This plan covers two phases of calculation fixes:
-- **Phase 1 (Tasks 1–4):** Healthcare survivorFactor bug, federal bracket inflation + circular dependency, pension COLA toggle
-- **Phase 2 (Tasks 5–8):** Account type system (Traditional/Roth/Taxable per person), tax-efficient withdrawal ordering, capital gains tax
+**Completed:**
+- Calculation accuracy audit (8 tasks) — merged
+- Refactor: tests moved to `tests/`, AccountTypeBlock extracted, PlannerContext dep arrays explicit
+- UI polish: tabbed Assets step, numbered step nav, chart fixes, form density tightened
 
-**Resume point:** Plan is written and reviewed. Execution not yet started. Next step: pick up at Task 1.
+**Resume point:** Ask user which Phase 2 feature to tackle next.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
-- **No preview_* tools** — they don't work on this machine. Verify with `vite build` via Bash only
-- **User verifies visually** at localhost:5173 in their own browser
+- **Preview tools work** — `preview_start` (server name: `retirement-planner`) → `preview_screenshot` for verification
 - **Commit after each task** — plan specifies exact commit messages
 - **One decision at a time** — never move on without user confirmation
 - **Explain reasoning** — why this pattern, not just what it does
@@ -38,4 +38,4 @@ This plan covers two phases of calculation fixes:
 - Avoid jargon; explain financial concepts inline for non-expert users
 
 ## Do Not Use
-- `preview_start`, `preview_screenshot`, `preview_snapshot`, or any `preview_*` tools
+- `preview_snapshot` (fails with `t.slice is not a function`) — use `preview_screenshot` instead
