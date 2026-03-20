@@ -17,15 +17,29 @@ function PlannerWizard() {
         <h1 className="app-headline">Will Your Money Last?</h1>
         <p className="app-sub">A personalized projection based on your real numbers.</p>
         <nav className="stepper">
-          {STEPS.map((s, i) => (
-            <button
-              key={s}
-              className={`step-btn${step === i ? " step-btn--active" : step > i ? " step-btn--done" : ""}`}
-              onClick={() => step > i && setStep(i)}
-            >
-              {s}
-            </button>
-          ))}
+          {STEPS.flatMap((s, i) => {
+            const isDone   = step > i;
+            const isActive = step === i;
+            const items = [
+              <div key={`step-${i}`} className="stepper-item">
+                <button
+                  className={`stepper-circle${isActive ? ' stepper-circle--active' : isDone ? ' stepper-circle--done' : ''}`}
+                  onClick={() => isDone && setStep(i)}
+                >
+                  {isDone ? '✓' : i + 1}
+                </button>
+                <span className={`stepper-label${isActive ? ' stepper-label--active' : isDone ? ' stepper-label--done' : ''}`}>
+                  {s}
+                </span>
+              </div>,
+            ];
+            if (i < STEPS.length - 1) {
+              items.push(
+                <div key={`conn-${i}`} className={`stepper-connector${isDone ? ' stepper-connector--done' : ''}`} />
+              );
+            }
+            return items;
+          })}
         </nav>
       </header>
 

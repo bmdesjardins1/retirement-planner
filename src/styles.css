@@ -77,37 +77,79 @@ input[type="range"]::-webkit-slider-thumb {
 /* === STEPPER === */
 .stepper {
   display: flex;
-  gap: 0;
+  align-items: flex-start;
   margin-top: 28px;
+  padding: 0 8px;
   overflow-x: auto;
 }
 
-.step-btn {
-  flex: 1;
-  padding: 10px 8px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid rgba(51, 65, 85, 0.4);
-  color: #475569;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: default;
-  transition: all 0.2s;
-  white-space: nowrap;
-  font-family: inherit;
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.step-btn--done {
-  border-bottom-color: rgba(52, 211, 153, 0.3);
-  color: rgba(52, 211, 153, 0.7);
+.stepper-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #334155;
+  background: transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  line-height: 1;
+}
+
+.stepper-circle--done {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: #34d399;
+  color: #34d399;
   cursor: pointer;
 }
 
-.step-btn--active {
-  border-bottom-color: #34d399;
+.stepper-circle--active {
+  background: #34d399;
+  border-color: #34d399;
+  color: #0a0a14;
+}
+
+.stepper-label {
+  font-size: 10px;
+  color: #475569;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.stepper-label--done {
+  color: rgba(52, 211, 153, 0.7);
+}
+
+.stepper-label--active {
   color: #34d399;
+  font-weight: 700;
+}
+
+.stepper-connector {
+  flex: 1;
+  height: 2px;
+  background: #1e293b;
+  margin-top: 15px;
+  margin-bottom: 22px;
+  min-width: 16px;
+}
+
+.stepper-connector--done {
+  background: rgba(52, 211, 153, 0.4);
 }
 
 /* === NAVIGATION === */
