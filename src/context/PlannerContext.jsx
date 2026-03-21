@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useMemo } from "react";
 import { STATE_DATA } from "../data/stateData";
 import { runProjection } from "../utils/calc";
+import { ssAdjustmentFactor } from "../utils/ssUtils";
 
 const PlannerContext = createContext(null);
 
@@ -21,6 +22,8 @@ export function PlannerProvider({ children }) {
   // Income
   const [ss1, setSs1]                         = useState(1800);
   const [ss2, setSs2]                         = useState(1400);
+  const [ss1ClaimAge, setSs1ClaimAge]         = useState(67);
+  const [ss2ClaimAge, setSs2ClaimAge]         = useState(67);
   const [pension, setPension]                 = useState(0);
   const [pensionCOLA, setPensionCOLA]         = useState(false);
   const [partTimeIncome, setPartTimeIncome]   = useState(0);
@@ -86,6 +89,8 @@ export function PlannerProvider({ children }) {
 
   // Derived
   const stateInfo = STATE_DATA[state] || STATE_DATA["Florida"];
+  const adjustedSS1 = ss1 * ssAdjustmentFactor(ss1ClaimAge);
+  const adjustedSS2 = ss2 * ssAdjustmentFactor(ss2ClaimAge);
 
   // Shared inputs passed to every projection
   const sharedInputs = {
@@ -101,7 +106,7 @@ export function PlannerProvider({ children }) {
     age, retirementAge, lifeExpectancy,
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     hasSpouse,
-    ss1, ss2,
+    ss1: adjustedSS1, ss2: adjustedSS2,
     trad401k: (hasTrad401k ? trad401k : 0) + (hasSpouse && spouseHasTrad401k ? spouseTrad401k : 0),
     roth401k: (hasRoth401k ? roth401k : 0) + (hasSpouse && spouseHasRoth401k ? spouseRoth401k : 0),
     tradIRA: (hasTradIRA ? tradIRA : 0) + (hasSpouse && spouseHasTradIRA ? spouseTradIRA : 0),
@@ -117,7 +122,7 @@ export function PlannerProvider({ children }) {
   }), [
     age, retirementAge, lifeExpectancy,
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
-    hasSpouse, ss1, ss2,
+    hasSpouse, ss1, ss1ClaimAge, ss2, ss2ClaimAge,
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
@@ -135,7 +140,7 @@ export function PlannerProvider({ children }) {
   const primaryResults = useMemo(() => runProjection({
     age, retirementAge, lifeExpectancy,
     hasSpouse: false,
-    ss1, ss2: 0,
+    ss1: adjustedSS1, ss2: 0,
     trad401k: hasTrad401k ? trad401k : 0,
     roth401k: hasRoth401k ? roth401k : 0,
     tradIRA: hasTradIRA ? tradIRA : 0,
@@ -148,7 +153,7 @@ export function PlannerProvider({ children }) {
     ...sharedInputs,
   }), [
     age, retirementAge, lifeExpectancy,
-    ss1,
+    ss1, ss1ClaimAge,
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
@@ -163,7 +168,7 @@ export function PlannerProvider({ children }) {
   const spouseResults = useMemo(() => hasSpouse ? runProjection({
     age: spouseAge, retirementAge: spouseRetirementAge, lifeExpectancy: spouseLifeExpectancy,
     hasSpouse: false,
-    ss1: ss2, ss2: 0,
+    ss1: adjustedSS2, ss2: 0,
     trad401k: spouseHasTrad401k ? spouseTrad401k : 0,
     roth401k: spouseHasRoth401k ? spouseRoth401k : 0,
     tradIRA: spouseHasTradIRA ? spouseTradIRA : 0,
@@ -177,7 +182,7 @@ export function PlannerProvider({ children }) {
     ...sharedInputs,
   }) : null, [
     hasSpouse, spouseAge, spouseRetirementAge, spouseLifeExpectancy,
-    ss2,
+    ss2, ss2ClaimAge,
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
@@ -215,6 +220,9 @@ export function PlannerProvider({ children }) {
       // Income
       ss1, setSs1,
       ss2, setSs2,
+      ss1ClaimAge, setSs1ClaimAge,
+      ss2ClaimAge, setSs2ClaimAge,
+      adjustedSS1, adjustedSS2,
       pension, setPension,
       pensionCOLA, setPensionCOLA,
       partTimeIncome, setPartTimeIncome,
