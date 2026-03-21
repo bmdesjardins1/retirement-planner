@@ -18,6 +18,21 @@ export default function ResultsStep() {
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
 
+  // Withdrawal rate: annual gap drawn from portfolio at retirement
+  // Shows 0 if there's a surplus (no portfolio draw needed)
+  const withdrawalRate = results.portfolioAtRetirement > 0 && results.monthlyGap > 0
+    ? ((results.monthlyGap * 12) / results.portfolioAtRetirement * 100)
+    : 0;
+
+  const withdrawalRateDisplay = withdrawalRate === 0 ? "0.0" : withdrawalRate.toFixed(1);
+
+  const withdrawalRateColor =
+    withdrawalRate === 0   ? "value--green"  :
+    withdrawalRate <= 4    ? "value--green"  :
+    withdrawalRate <= 5    ? "value--yellow" :
+    withdrawalRate <= 7    ? "value--orange" :
+                             "value--red";
+
   // Projected monthly need when LTC kicks in (inflation-adjusted from yearsData)
   const ltcMonthlyAtStart = longTermCare > 0
     ? Math.round((results.yearsData.find(d => d.age >= ltcStartAge)?.expenses ?? 0) / 12)
@@ -64,6 +79,16 @@ export default function ResultsStep() {
             {results.runOutYear ? results.runwayYears : "30+"}
           </div>
           <div className="verdict-runway-unit">years</div>
+        </div>
+        <div className="verdict-runway" style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}>
+          <div className="verdict-runway-label">Withdrawal Rate</div>
+          <div className={`verdict-runway-num ${withdrawalRateColor}`}>
+            {withdrawalRateDisplay}%
+          </div>
+          <div className="verdict-runway-unit">of portfolio / yr</div>
+          <div className="verdict-runway-unit" style={{ marginTop: 4, fontSize: 9, opacity: 0.6 }}>
+            ≤4% considered safe
+          </div>
         </div>
       </div>
 
