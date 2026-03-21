@@ -10,14 +10,14 @@ export function PlannerProvider({ children }) {
   const [step, setStep] = useState(0);
 
   // Profile
-  const [age, setAge]                                 = useState(45);
-  const [spouseAge, setSpouseAge]                     = useState(43);
-  const [hasSpouse, setHasSpouse]                     = useState(true);
-  const [lifeExpectancy, setLifeExpectancy]           = useState(88);
-  const [spouseLifeExpectancy, setSpouseLifeExpectancy] = useState(86);
-  const [retirementAge, setRetirementAge]             = useState(65);
-  const [spouseRetirementAge, setSpouseRetirementAge] = useState(63);
-  const [state, setState]                             = useState("Florida");
+  const [age, setAgeRaw]                                       = useState(45);
+  const [spouseAge, setSpouseAgeRaw]                           = useState(43);
+  const [hasSpouse, setHasSpouse]                              = useState(true);
+  const [lifeExpectancy, setLifeExpectancyRaw]                 = useState(88);
+  const [spouseLifeExpectancy, setSpouseLifeExpectancyRaw]     = useState(86);
+  const [retirementAge, setRetirementAgeRaw]                   = useState(65);
+  const [spouseRetirementAge, setSpouseRetirementAgeRaw]       = useState(63);
+  const [state, setState]                                      = useState("Florida");
 
   // Income
   const [ss1, setSs1]                         = useState(1800);
@@ -86,6 +86,40 @@ export function PlannerProvider({ children }) {
   const [other, setOther]               = useState(300);
   const [longTermCare, setLongTermCare] = useState(0);
   const [ltcStartAge, setLtcStartAge]   = useState(80);
+
+  // Constrained setters — enforce cross-field ordering rules
+  const setAge = (v) => {
+    setAgeRaw(v);
+    if (retirementAge < v)   setRetirementAgeRaw(v);
+    if (lifeExpectancy <= v) setLifeExpectancyRaw(v + 1);
+  };
+
+  const setRetirementAge = (v) => {
+    setRetirementAgeRaw(v);
+    if (lifeExpectancy <= v) setLifeExpectancyRaw(v + 1);
+    if (partTimeEndAge < v)  setPartTimeEndAge(v);
+    if (ltcStartAge < v)     setLtcStartAge(v);
+  };
+
+  const setLifeExpectancy = (v) => {
+    setLifeExpectancyRaw(Math.max(v, retirementAge + 1));
+    if (ltcStartAge > v)     setLtcStartAge(v);
+  };
+
+  const setSpouseAge = (v) => {
+    setSpouseAgeRaw(v);
+    if (spouseRetirementAge < v)   setSpouseRetirementAgeRaw(v);
+    if (spouseLifeExpectancy <= v) setSpouseLifeExpectancyRaw(v + 1);
+  };
+
+  const setSpouseRetirementAge = (v) => {
+    setSpouseRetirementAgeRaw(v);
+    if (spouseLifeExpectancy <= v) setSpouseLifeExpectancyRaw(v + 1);
+  };
+
+  const setSpouseLifeExpectancy = (v) => {
+    setSpouseLifeExpectancyRaw(Math.max(v, spouseRetirementAge + 1));
+  };
 
   // Derived
   const stateInfo = STATE_DATA[state] || STATE_DATA["Florida"];

@@ -31,7 +31,7 @@ export default function ProfileStep() {
           />
           <SliderInput
             label="Life Expectancy"
-            value={lifeExpectancy} min={75} max={100} step={1}
+            value={lifeExpectancy} min={Math.max(75, retirementAge + 1)} max={100} step={1}
             onChange={setLifeExpectancy} suffix=" yrs"
             note="Average US life expectancy is ~78M / ~82F. Adjust based on health."
           />
@@ -59,7 +59,7 @@ export default function ProfileStep() {
           {hasSpouse && (
             <SliderInput
               label="Spouse Life Expectancy"
-              value={spouseLifeExpectancy} min={75} max={100} step={1}
+              value={spouseLifeExpectancy} min={Math.max(75, spouseRetirementAge + 1)} max={100} step={1}
               onChange={setSpouseLifeExpectancy} suffix=" yrs"
               note="Average US life expectancy is ~78M / ~82F. Adjust based on health."
             />
