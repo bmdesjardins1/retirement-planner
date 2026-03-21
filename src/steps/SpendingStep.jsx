@@ -8,12 +8,14 @@ export default function SpendingStep() {
     housing, setHousing,
     food, setFood,
     healthcare, setHealthcare,
+    bridgeHealthcare, setBridgeHealthcare,
     transport, setTransport,
     leisure, setLeisure,
     other, setOther,
     longTermCare, setLongTermCare,
     ltcStartAge, setLtcStartAge,
-    lifeExpectancy, retirementAge,
+    lifeExpectancy, retirementAge, spouseRetirementAge,
+    hasSpouse,
     stateInfo, state, results,
   } = usePlanner();
   const gapPositive = results.monthlyGap > 0;
@@ -29,8 +31,16 @@ export default function SpendingStep() {
           <SliderInput label="Housing (rent/mortgage/HOA)" value={housing}    min={0} max={5000} step={50} onChange={setHousing}    prefix="$" suffix="/mo"
             note="Don't include property taxes here — we calculate those automatically from your home value on the Assets step." />
           <SliderInput label="Food & Groceries"            value={food}       min={0} max={2000} step={50} onChange={setFood}       prefix="$" suffix="/mo" />
-          <SliderInput label="Healthcare & Insurance"      value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
-            note="Medicare + supplement avg ~$500-900/mo for a couple." />
+          <SliderInput label="Monthly Healthcare in Retirement (on Medicare, age 65+)" value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
+            note="Medicare Part B + supplement avg $400–900/mo per person. Applies from age 65 onward." />
+          {(retirementAge < 65 || (hasSpouse && spouseRetirementAge < 65)) && (
+            <SliderInput
+              label="Monthly Healthcare Before Medicare"
+              value={bridgeHealthcare} min={0} max={5000} step={50}
+              onChange={setBridgeHealthcare} prefix="$" suffix="/mo"
+              note={`Private insurance before Medicare kicks in at 65. Marketplace/COBRA avg $800–1,500/mo per person. Applies from retirement until ${hasSpouse ? 'both of you are' : 'you are'} on Medicare.`}
+            />
+          )}
         </Card>
 
         <Card>

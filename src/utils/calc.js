@@ -43,7 +43,7 @@ export function runProjection(inputs) {
     trad401k = 0, roth401k = 0, tradIRA = 0, rothIRA = 0, taxableBrokerage = 0,
     homeValue, homeOwned,
     investmentReturn, inflation, healthcareInflation,
-    housing, food, healthcare, transport, leisure, other,
+    housing, food, healthcare, bridgeHealthcare = 0, transport, leisure, other,
     longTermCare = 0, ltcStartAge = 80,
     stateInfo,
     survivorFactor = 1.0,
@@ -58,6 +58,16 @@ export function runProjection(inputs) {
   // LTC is also NOT scaled by CoL index — facility rates don't correlate with general CoL the same way.
   const baseNonHealthcareNeed = (housing + food + transport + leisure + other) * col * survivorFactor;
   const baseHealthcareNeed    = healthcare * col;
+
+  // Pre-Medicare bridge: higher healthcare cost before age 65 (marketplace/COBRA).
+  // lastMedicareAge is the primary age when the last person in the household hits 65.
+  // For couples: if primary is 60 and spouse is 58, spouse hits 65 when primary is 67.
+  const baseBridgeHealthcareNeed = bridgeHealthcare > 0 ? bridgeHealthcare * col : baseHealthcareNeed;
+  const lastMedicareAge = hasSpouse
+    ? Math.max(65, currentAge + (65 - spouseAge))
+    : 65;
+  const hasBridge = bridgeHealthcare > 0 && retirementAge < lastMedicareAge;
+
   const baseLTCNeed           = longTermCare; // flat monthly — applied only from ltcStartAge onward
 
   const ssMonthly = ss1 + (hasSpouse ? ss2 : 0);
@@ -192,9 +202,13 @@ export function runProjection(inputs) {
     const activeRealSS                 = isSurvivor ? ssMonthlyAlone * 12          : realSS;
     const activeMarried                = isSurvivor ? false                         : hasSpouse;
 
+    // Switch to standard Medicare healthcare cost once both people are covered
+    const inBridgePhase = hasBridge && ageInYear < lastMedicareAge;
+    const activeBaseHealthcareNeed = inBridgePhase ? baseBridgeHealthcareNeed : baseHealthcareNeed;
+
     const yearlyNeed =
       (activeBaseNonHealthcareNeed + monthlyPropertyTax) * 12 * generalFactor +
-      baseHealthcareNeed * 12 * healthcareFactor +
+      activeBaseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC;
     const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
     const pensionContrib = pensionCOLA
