@@ -134,6 +134,28 @@ export function runProjection(inputs) {
   let tradBucket    = (trad401k + tradIRA) * growthFactor;
   let rothBucket    = (roth401k + rothIRA) * growthFactor;
 
+  // ── Survivor transition setup (combined projection only) ─────────────────
+  // When hasSpouse && survivorFactor === 1.0, the combined projection models
+  // both spouses alive. After the first death, SS drops to the higher benefit
+  // and expenses scale down to 60% (survivorFactor for solo).
+  const modelSurvivor = hasSpouse && survivorFactor === 1.0;
+  const firstDeathAge = modelSurvivor
+    ? Math.min(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
+    : Infinity;
+
+  // Survivor-phase expense and income bases
+  const baseNonHealthcareNeedAlone = (housing + food + transport + leisure + other) * col * 0.6;
+  const ssMonthlyAlone             = Math.max(ss1, ss2);
+  const ssTaxableAlone             = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
+
+  const nonPensionGrossWithPTAlone    = ssMonthlyAlone + partTimeIncome + rentalIncome;
+  const nonPensionTaxWithPTAlone      = (partTimeIncome + rentalIncome + ssTaxableAlone) * stateInfo.incomeTax;
+  const nonPensionNetWithPTAlone      = nonPensionGrossWithPTAlone - nonPensionTaxWithPTAlone;
+
+  const nonPensionGrossWithoutPTAlone = ssMonthlyAlone + rentalIncome;
+  const nonPensionTaxWithoutPTAlone   = (rentalIncome + ssTaxableAlone) * stateInfo.incomeTax;
+  const nonPensionNetWithoutPTAlone   = nonPensionGrossWithoutPTAlone - nonPensionTaxWithoutPTAlone;
+
   // ── Phase 2: Drawdown (retirementAge → effectiveLifeExpectancy + buffer) ────
   // For combined projections the household needs money until the last survivor dies.
   const effectiveLifeExpectancy = hasSpouse
@@ -154,12 +176,27 @@ export function runProjection(inputs) {
     const ltcActive = ageInYear >= ltcStartAge;
     const yearlyLTC = ltcActive ? baseLTCNeed * 12 * healthcareFactor : 0;
 
+    const ptEnded = ageInYear >= partTimeEndAge;
+
+    // Work in real (year-0 dollar) terms — equivalent to inflating brackets each year.
+    // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
+    // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
+    const realSS       = ssMonthly * 12;
+    const realOrdinary = (ptEnded ? nonSSWithoutPT : nonSSWithPT) * 12;
+
+    // Switch to survivor mode after the first spouse's death
+    const isSurvivor = modelSurvivor && ageInYear > firstDeathAge;
+    const activeBaseNonHealthcareNeed  = isSurvivor ? baseNonHealthcareNeedAlone  : baseNonHealthcareNeed;
+    const activeNonPensionNetWithPT    = isSurvivor ? nonPensionNetWithPTAlone    : nonPensionNetWithPT;
+    const activeNonPensionNetWithoutPT = isSurvivor ? nonPensionNetWithoutPTAlone : nonPensionNetWithoutPT;
+    const activeRealSS                 = isSurvivor ? ssMonthlyAlone * 12          : realSS;
+    const activeMarried                = isSurvivor ? false                         : hasSpouse;
+
     const yearlyNeed =
-      (baseNonHealthcareNeed + monthlyPropertyTax) * 12 * generalFactor +
+      (activeBaseNonHealthcareNeed + monthlyPropertyTax) * 12 * generalFactor +
       baseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC;
-    const ptEnded = ageInYear >= partTimeEndAge;
-    const baseNonPensionNet = ptEnded ? nonPensionNetWithoutPT : nonPensionNetWithPT;
+    const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
     const pensionContrib = pensionCOLA
       ? pensionNetMonthly * 12 * generalFactor   // COLA: inflates with general inflation
       : pensionNetMonthly * 12;                  // Fixed: stays flat in nominal dollars
@@ -167,15 +204,6 @@ export function runProjection(inputs) {
 
     // Estimate portfolio withdrawal needed before accounting for federal tax
     const preTaxGap = Math.max(yearlyNeed - yearlyIncome, 0);
-
-    // Federal tax on all income sources + estimated withdrawal from savings
-    const currentNonSS = ptEnded ? nonSSWithoutPT : nonSSWithPT;
-
-    // Work in real (year-0 dollar) terms — equivalent to inflating brackets each year.
-    // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
-    // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
-    const realSS       = ssMonthly * 12;
-    const realOrdinary = currentNonSS * 12;
 
     // --- Per-bucket growth (grow first, then withdraw — matches existing loop structure) ---
     const bucketGrowthRate = investmentReturn / 100;
@@ -201,14 +229,14 @@ export function runProjection(inputs) {
     const realTradGross    = tradGross / generalFactor;
     const realCapGains     = (taxableSpend * 0.60) / generalFactor;
     const { tax: realFed1 } = estimateFederalTax({
-      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      ssAnnual: activeRealSS, ordinaryIncome: realOrdinary,
       withdrawalEstimate: realTradGross, capitalGains: realCapGains,
-      married: hasSpouse, age: ageInYear,
+      married: activeMarried, age: ageInYear,
     });
     const { tax: realFed2, taxableSS } = estimateFederalTax({
-      ssAnnual: realSS, ordinaryIncome: realOrdinary,
+      ssAnnual: activeRealSS, ordinaryIncome: realOrdinary,
       withdrawalEstimate: realTradGross + realFed1, capitalGains: realCapGains,
-      married: hasSpouse, age: ageInYear,
+      married: activeMarried, age: ageInYear,
     });
     const federalTax = realFed2 * generalFactor;
 
@@ -216,7 +244,7 @@ export function runProjection(inputs) {
     const capGainsTax = estimateCapitalGainsTax({
       taxableGains: (taxableSpend * 0.60) / generalFactor,
       totalOrdinaryIncome: realOrdinary + (tradGross / generalFactor) + taxableSS,
-      married: hasSpouse,
+      married: activeMarried,
     }) * generalFactor;
 
     // --- Step 3: Total portfolio deduction ---
