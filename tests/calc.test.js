@@ -134,3 +134,57 @@ describe('Phase 2: account type bucket tracking', () => {
     expect(allRoth.runwayYears).toBeGreaterThanOrEqual(allTaxable.runwayYears);
   });
 });
+
+describe('SS claiming age via adjustedSS values', () => {
+  const base = {
+    age: 60, retirementAge: 62, lifeExpectancy: 85, hasSpouse: false,
+    ss1: 1000, ss2: 0,
+    trad401k: 200000, roth401k: 0, tradIRA: 0, rothIRA: 0, taxableBrokerage: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0, spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    pension: 0, pensionCOLA: false, partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    housing: 1000, food: 500, healthcare: 300, transport: 200, leisure: 200, other: 100,
+    longTermCare: 0, ltcStartAge: 80,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
+    survivorFactor: 0.6,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+  };
+
+  it('higher SS income leads to smaller monthly withdrawal than lower SS', () => {
+    const resultHigh = runProjection({ ...base, ss1: 1240 }); // claiming at 70: 1000 × 1.24
+    const resultLow  = runProjection({ ...base, ss1: 700  }); // claiming at 62: 1000 × 0.70
+    expect(resultHigh.monthlyGap).toBeLessThan(resultLow.monthlyGap);
+  });
+
+  it('higher SS leads to longer portfolio runway', () => {
+    const resultHigh = runProjection({ ...base, ss1: 1240 });
+    const resultLow  = runProjection({ ...base, ss1: 700  });
+    expect(resultHigh.runwayYears).toBeGreaterThan(resultLow.runwayYears);
+  });
+});
+
+describe('survivor SS transition in combined projection', () => {
+  const base = {
+    age: 60, retirementAge: 65, lifeExpectancy: 80,
+    spouseAge: 58, spouseRetirementAge: 63, spouseLifeExpectancy: 75,
+    hasSpouse: true, survivorFactor: 1.0,
+    ss1: 2000, ss2: 1000,
+    trad401k: 300000, roth401k: 0, tradIRA: 0, rothIRA: 0, taxableBrokerage: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0, spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    pension: 0, pensionCOLA: false, partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    housing: 1000, food: 500, healthcare: 300, transport: 200, leisure: 200, other: 100,
+    longTermCare: 0, ltcStartAge: 80,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+  };
+
+  it('combined projection runway is no longer than a no-drop baseline with same total SS', () => {
+    // withSurvivor drops SS at spouse death; noSurvivorDrop keeps full $3000 forever
+    const withSurvivor   = runProjection({ ...base });
+    const noSurvivorDrop = runProjection({ ...base, hasSpouse: false, ss1: 3000, survivorFactor: 1.0 });
+    expect(withSurvivor.runwayYears).toBeLessThanOrEqual(noSurvivorDrop.runwayYears);
+  });
+});
