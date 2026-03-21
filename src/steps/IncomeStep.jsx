@@ -9,6 +9,9 @@ export default function IncomeStep() {
     hasSpouse,
     ss1, setSs1,
     ss2, setSs2,
+    ss1ClaimAge, setSs1ClaimAge,
+    ss2ClaimAge, setSs2ClaimAge,
+    adjustedSS1, adjustedSS2,
     pension, setPension,
     pensionCOLA, setPensionCOLA,
     partTimeIncome, setPartTimeIncome,
@@ -16,6 +19,14 @@ export default function IncomeStep() {
     rentalIncome, setRentalIncome,
     state, results,
   } = usePlanner();
+
+  function claimPreviewNote(claimAge, fraAmount, adjustedAmount) {
+    const delta = Math.round(Math.abs(adjustedAmount - fraAmount));
+    const adj = Math.round(adjustedAmount);
+    if (claimAge === 67) return `At 67 (Full Retirement Age): $${adj.toLocaleString()}/mo`;
+    if (claimAge < 67)  return `At ${claimAge}: $${adj.toLocaleString()}/mo — $${delta.toLocaleString()}/mo less than waiting until 67`;
+    return `At ${claimAge}: $${adj.toLocaleString()}/mo — $${delta.toLocaleString()}/mo more than claiming at 67`;
+  }
   return (
     <div>
       <SectionTitle sub="Include all monthly income sources in today's dollars.">Monthly Income</SectionTitle>
@@ -23,10 +34,24 @@ export default function IncomeStep() {
       <div className="grid-2">
         <Card>
           <h3 className="card-heading card-heading--green">Social Security</h3>
-          <SliderInput label="Your Social Security Benefit" value={ss1} min={0} max={4000} step={50} onChange={setSs1} prefix="$" suffix="/mo"
+          <SliderInput label="Your Social Security Benefit (at Full Retirement Age, 67)" value={ss1} min={0} max={4000} step={50} onChange={setSs1} prefix="$" suffix="/mo"
             note="Check ssa.gov for your estimate (avg. ~$1,900/mo). Your ssa.gov estimate is already in today's dollars." />
+          <SliderInput
+            label="Your Planned Claiming Age"
+            value={ss1ClaimAge} min={62} max={70} step={1}
+            onChange={setSs1ClaimAge} suffix=" yrs"
+            note={claimPreviewNote(ss1ClaimAge, ss1, adjustedSS1)}
+          />
           {hasSpouse && (
-            <SliderInput label="Spouse Social Security Benefit" value={ss2} min={0} max={4000} step={50} onChange={setSs2} prefix="$" suffix="/mo" />
+            <>
+              <SliderInput label="Spouse Social Security Benefit (at Full Retirement Age, 67)" value={ss2} min={0} max={4000} step={50} onChange={setSs2} prefix="$" suffix="/mo" />
+              <SliderInput
+                label="Spouse Planned Claiming Age"
+                value={ss2ClaimAge} min={62} max={70} step={1}
+                onChange={setSs2ClaimAge} suffix=" yrs"
+                note={claimPreviewNote(ss2ClaimAge, ss2, adjustedSS2)}
+              />
+            </>
           )}
         </Card>
 
