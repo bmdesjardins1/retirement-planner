@@ -8,6 +8,7 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `src/context/PlannerContext.jsx` — all app state + three projection calls
 - `src/steps/` — ProfileStep, IncomeStep, AssetsStep, SpendingStep, ResultsStep
 - `src/utils/calc.js` — runProjection(), verdictConfig()
+- `src/utils/ssUtils.js` — ssAdjustmentFactor() — SSA claiming age multiplier
 - `src/utils/federalTax.js` — estimateFederalTax(), (Phase 2) estimateCapitalGainsTax()
 - `src/data/stateData.js` — all 50 states
 - `src/styles.css` — all styling
@@ -15,18 +16,20 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `docs/superpowers/plans/` — implementation plans
 
 ## Active Work
-**Status:** Refactor & UI polish (7 tasks) complete. Push to main pending.
+**Status:** Phase 2 in progress. 4 features shipped to main.
 
-**Completed:**
-- Calculation accuracy audit (8 tasks) — merged
-- Refactor: tests moved to `tests/`, AccountTypeBlock extracted, PlannerContext dep arrays explicit
-- UI polish: tabbed Assets step, numbered step nav, chart fixes, form density tightened
+**Completed this session:**
+- SS claiming age (62–70 slider, SSA formula, survivor benefit transition in combined projection)
+- Input validation (constrained setters — age/retirement/lifeExpectancy ordering enforced)
+- Withdrawal rate display (verdict banner, color-coded, 4% rule benchmark)
+- Pre-65 healthcare bridge (separate cost before Medicare; `lastMedicareAge` handles couples)
 
-**Resume point:** Ask user which Phase 2 feature to tackle next.
+**Resume point:** Next up is #5 — Monte Carlo simulation (confidence band: best/median/worst).
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
 - **Preview tools work** — `preview_start` (server name: `retirement-planner`) → `preview_screenshot` for verification
+- **Feature branches required** — main is branch-protected. Create `feat/<name>` branch, commit there, open PR for user to merge.
 - **Commit after each task** — plan specifies exact commit messages
 - **One decision at a time** — never move on without user confirmation
 - **Explain reasoning** — why this pattern, not just what it does
