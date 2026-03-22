@@ -59,6 +59,8 @@ IRMAA uses Modified Adjusted Gross Income (MAGI = AGI + tax-exempt interest). AG
 
 2. **Portfolio withdrawals excluded to avoid circular dependency.** IRMAA is added to `yearlyNeed` before the gap is computed. This means IRMAA must be estimated before withdrawal amounts are known. Including portfolio withdrawals in MAGI would require circular logic (IRMAA → larger gap → larger withdrawal → higher MAGI → higher IRMAA). We therefore estimate MAGI from guaranteed income only: `SS + pension + part-time + rental`. This may understate IRMAA for retirees with large traditional account balances (high withdrawals). We accept this simplification and note it in the UI.
 
+3. **`realOrdinary` is not adjusted for survivor phase.** After the first spouse's death, `activeRealSS` correctly drops to `ssMonthlyAlone * 12`, but `realOrdinary` (= `(ptEnded ? nonSSWithoutPT : nonSSWithPT) * 12`) remains the full household pension + part-time + rental value — it has no survivor variant in the existing loop. In practice, pension and rental income don't necessarily halve after a spouse's death, so this is a reasonable approximation. It slightly overstates MAGI in survivor years of the combined projection. Accepted — consistent with how federal tax is computed for survivor years.
+
 **MAGI used for lookup:**
 ```
 irmaaMAGI = activeRealSS + realOrdinary   (real/year-0 dollars, annual)
@@ -126,19 +128,25 @@ irmaa: Math.round(irmaaSurchargePerPerson),   // monthly per-person; reuses alre
 
 In the Tax & Cost Summary section, add IRMAA metric box after the RMD box.
 
-**Source data:** Find the first `yearsData` entry where `age >= Math.max(retirementAge, 65)` — call it `firstMedicareYear`. Read `firstMedicareYear.irmaa` (monthly per-person).
+**Source data lookup:**
 
-**Limitation acknowledged:** For couples where the primary retires before 65 or where the spouses have meaningfully different retirement ages, the snapshot year may show only one person's IRMAA exposure rather than the couple's full steady-state. The UI labels "per person" which is accurate for the snapshot, even if both spouses will ultimately be covered.
+1. Find all `yearsData` entries where `age >= Math.max(retirementAge, 65)` — these are the Medicare-eligible years.
+2. From those, find `firstIrmaaYear`: the **first** entry where `irmaa > 0`.
+3. If no such entry exists (`firstIrmaaYear` is undefined), display the "No surcharge" box.
+
+**Why not use the first Medicare-eligible year:** MAGI is estimated from guaranteed income only (no portfolio withdrawals per simplification #2). If guaranteed income is below the threshold early in retirement but would exceed it in later years (e.g., if part-time income ends and SS + pension puts them near the edge), the display could show 0 when a later year is non-zero. Using `firstIrmaaYear` (first positive) correctly surfaces the surcharge when it applies. Note: since portfolio withdrawals (including RMDs) are excluded from MAGI in this projection, `irmaa` values in `yearsData` are stable across years for a given income composition. In practice, the main variation is the part-time income cutoff (`partTimeEndAge`).
+
+**Limitation acknowledged:** For couples where the primary retires before 65, `age` in yearsData reflects the primary person's age. The spouse's Medicare eligibility is handled via `medicareCount` in the calc loop, not in the display lookup. The UI labels "per person" which is accurate regardless of couple status.
 
 **Display:**
 
-- **When `irmaa > 0`:** Orange metric box
+- **When `firstIrmaaYear` exists (`irmaa > 0`):** Orange metric box
   - Label: "Medicare IRMAA"
-  - Value: `+$X/mo per person`
+  - Value: `+$X/mo per person` (where X = `firstIrmaaYear.irmaa`)
   - Sub-note: "Based on your guaranteed retirement income (SS, pension, other fixed sources). Actual IRMAA may be higher if large traditional account withdrawals push your income up."
   - Nudge: "Roth conversions before 65 can reduce this — Roth withdrawals don't count toward the income limit."
 
-- **When `irmaa === 0`:** Green metric box
+- **When no Medicare-eligible year has `irmaa > 0`:** Green metric box
   - Label: "Medicare IRMAA"
   - Value: "No surcharge"
   - Sub-note: "Your projected income is below the Medicare IRMAA threshold."
