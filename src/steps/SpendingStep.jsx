@@ -5,7 +5,9 @@ import SectionTitle from "../components/SectionTitle";
 
 export default function SpendingStep() {
   const {
+    housingType, setHousingType,
     housing, setHousing,
+    mortgagePayoffAge, setMortgagePayoffAge,
     food, setFood,
     healthcare, setHealthcare,
     bridgeHealthcare, setBridgeHealthcare,
@@ -14,7 +16,7 @@ export default function SpendingStep() {
     other, setOther,
     longTermCare, setLongTermCare,
     ltcStartAge, setLtcStartAge,
-    lifeExpectancy, retirementAge, spouseRetirementAge,
+    age, lifeExpectancy, retirementAge, spouseRetirementAge,
     hasSpouse,
     stateInfo, state, results,
   } = usePlanner();
@@ -26,10 +28,39 @@ export default function SpendingStep() {
         Monthly Spending
       </SectionTitle>
 
+      {/* Housing Payment */}
+      <Card className="mb-20">
+        <h3 className="card-heading">Housing Payment</h3>
+        <div className="tab-row" style={{ marginBottom: 16 }}>
+          <button
+            className={`tab-btn${housingType === "own" ? " tab-btn--active" : ""}`}
+            onClick={() => setHousingType("own")}
+          >I have a mortgage</button>
+          <button
+            className={`tab-btn${housingType === "rent" ? " tab-btn--active" : ""}`}
+            onClick={() => setHousingType("rent")}
+          >I rent</button>
+        </div>
+        <div className="grid-2">
+          <SliderInput
+            label={housingType === "own" ? "Monthly Mortgage Payment" : "Monthly Rent"}
+            value={housing} min={0} max={5000} step={50}
+            onChange={setHousing} prefix="$" suffix="/mo"
+            note="Don't include property taxes here — we calculate those automatically from your home value on the Assets step."
+          />
+          {housingType === "own" && (
+            <SliderInput
+              label="Mortgage Paid Off At Age"
+              value={mortgagePayoffAge} min={age} max={lifeExpectancy} step={1}
+              onChange={setMortgagePayoffAge} suffix=" yrs"
+              note="After payoff, housing expenses drop to $0 — freeing up that cash flow in your retirement projection."
+            />
+          )}
+        </div>
+      </Card>
+
       <div className="grid-2">
         <Card>
-          <SliderInput label="Housing (rent/mortgage/HOA)" value={housing}    min={0} max={5000} step={50} onChange={setHousing}    prefix="$" suffix="/mo"
-            note="Don't include property taxes here — we calculate those automatically from your home value on the Assets step." />
           <SliderInput label="Food & Groceries"            value={food}       min={0} max={2000} step={50} onChange={setFood}       prefix="$" suffix="/mo" />
           <SliderInput label="Monthly Healthcare in Retirement (on Medicare, age 65+)" value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
             note="Medicare Part B + supplement avg $400–900/mo per person. Applies from age 65 onward." />

@@ -78,7 +78,9 @@ export function PlannerProvider({ children }) {
   const [healthcareInflation, setHealthcareInflation]   = useState(5.5);
 
   // Spending
-  const [housing, setHousing]           = useState(1500);
+  const [housingType, setHousingType]           = useState("own"); // "own" | "rent"
+  const [housing, setHousing]                   = useState(1500);
+  const [mortgagePayoffAge, setMortgagePayoffAge] = useState(75); // age + 30 at default age 45
   const [food, setFood]                 = useState(700);
   const [healthcare, setHealthcare]     = useState(800);
   const [bridgeHealthcare, setBridgeHealthcare] = useState(1200);
@@ -131,7 +133,8 @@ export function PlannerProvider({ children }) {
   const sharedInputs = {
     pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
-    housing, food, healthcare, bridgeHealthcare, transport, leisure, other,
+    housingType, housing, mortgagePayoffAge,
+    food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     stateInfo,
   };
@@ -165,7 +168,8 @@ export function PlannerProvider({ children }) {
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
     pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
-    housing, food, healthcare, bridgeHealthcare, transport, leisure, other,
+    housingType, housing, mortgagePayoffAge,
+    food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
     stateInfo,
@@ -193,7 +197,8 @@ export function PlannerProvider({ children }) {
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
-    housing, food, healthcare, bridgeHealthcare, transport, leisure, other,
+    housingType, housing, mortgagePayoffAge,
+    food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
     stateInfo,
@@ -222,7 +227,8 @@ export function PlannerProvider({ children }) {
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
     pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
-    housing, food, healthcare, bridgeHealthcare, transport, leisure, other,
+    housingType, housing, mortgagePayoffAge,
+    food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
     stateInfo,
@@ -292,7 +298,9 @@ export function PlannerProvider({ children }) {
       inflation, setInflation,
       healthcareInflation, setHealthcareInflation,
       // Spending
+      housingType, setHousingType,
       housing, setHousing,
+      mortgagePayoffAge, setMortgagePayoffAge,
       food, setFood,
       healthcare, setHealthcare,
       bridgeHealthcare, setBridgeHealthcare,

@@ -43,7 +43,8 @@ export function runProjection(inputs) {
     trad401k = 0, roth401k = 0, tradIRA = 0, rothIRA = 0, taxableBrokerage = 0,
     homeValue, homeOwned,
     investmentReturn, inflation, healthcareInflation,
-    housing, food, healthcare, bridgeHealthcare = 0, transport, leisure, other,
+    housingType = "rent", housing, mortgagePayoffAge = Infinity,
+    food, healthcare, bridgeHealthcare = 0, transport, leisure, other,
     longTermCare = 0, ltcStartAge = 80,
     stateInfo,
     survivorFactor = 1.0,
@@ -56,7 +57,9 @@ export function runProjection(inputs) {
   // survivorFactor scales regular expenses for solo projections (0.6 = standard survivor assumption).
   // LTC is intentionally NOT scaled by survivorFactor (care costs are per-person, not household).
   // LTC is also NOT scaled by CoL index — facility rates don't correlate with general CoL the same way.
-  const baseNonHealthcareNeed = (housing + food + transport + leisure + other) * col * survivorFactor;
+  // Housing is split out separately so mortgage payments can drop to $0 after payoff age.
+  const baseHousingNeed       = housing * col * survivorFactor;
+  const baseNonHousingNeed    = (food + transport + leisure + other) * col * survivorFactor;
   const baseHealthcareNeed    = healthcare * col;
 
   // Pre-Medicare bridge: higher healthcare cost before age 65 (marketplace/COBRA).
@@ -96,7 +99,7 @@ export function runProjection(inputs) {
   const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly;
   const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax;
 
-  const adjustedExpenses = (baseNonHealthcareNeed + baseHealthcareNeed);
+  const adjustedExpenses = (baseHousingNeed + baseNonHousingNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
   const monthlyGap = totalMonthlyNeed - netMonthlyIncome;
   const totalLiquidAssets = trad401k + roth401k + tradIRA + rothIRA + taxableBrokerage;
@@ -153,8 +156,9 @@ export function runProjection(inputs) {
     ? Math.min(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
     : Infinity;
 
-  // Survivor-phase expense and income bases
-  const baseNonHealthcareNeedAlone = (housing + food + transport + leisure + other) * col * 0.6;
+  // Survivor-phase expense and income bases (housing split for payoff logic)
+  const baseHousingNeedAlone    = housing * col * 0.6;
+  const baseNonHousingNeedAlone = (food + transport + leisure + other) * col * 0.6;
   const ssMonthlyAlone             = Math.max(ss1, ss2);
   const ssTaxableAlone             = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
 
@@ -196,18 +200,23 @@ export function runProjection(inputs) {
 
     // Switch to survivor mode after the first spouse's death
     const isSurvivor = modelSurvivor && ageInYear > firstDeathAge;
-    const activeBaseNonHealthcareNeed  = isSurvivor ? baseNonHealthcareNeedAlone  : baseNonHealthcareNeed;
+    const activeBaseNonHousingNeed     = isSurvivor ? baseNonHousingNeedAlone    : baseNonHousingNeed;
+    const activeBaseHousingNeed        = isSurvivor ? baseHousingNeedAlone       : baseHousingNeed;
     const activeNonPensionNetWithPT    = isSurvivor ? nonPensionNetWithPTAlone    : nonPensionNetWithPT;
     const activeNonPensionNetWithoutPT = isSurvivor ? nonPensionNetWithoutPTAlone : nonPensionNetWithoutPT;
     const activeRealSS                 = isSurvivor ? ssMonthlyAlone * 12          : realSS;
     const activeMarried                = isSurvivor ? false                         : hasSpouse;
+
+    // Mortgage payoff: housing drops to $0 for owners after payoff age
+    const housePaid = housingType === "own" && ageInYear >= mortgagePayoffAge;
+    const effectiveHousingNeed = housePaid ? 0 : activeBaseHousingNeed;
 
     // Switch to standard Medicare healthcare cost once both people are covered
     const inBridgePhase = hasBridge && ageInYear < lastMedicareAge;
     const activeBaseHealthcareNeed = inBridgePhase ? baseBridgeHealthcareNeed : baseHealthcareNeed;
 
     const yearlyNeed =
-      (activeBaseNonHealthcareNeed + monthlyPropertyTax) * 12 * generalFactor +
+      (activeBaseNonHousingNeed + effectiveHousingNeed + monthlyPropertyTax) * 12 * generalFactor +
       activeBaseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC;
     const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
