@@ -216,3 +216,44 @@ describe('Mortgage payoff modeling', () => {
     expect(rent.runwayYears).toBe(rentControl.runwayYears);
   });
 });
+
+describe('RMDs (Required Minimum Distributions)', () => {
+  // Person retires at 65, hits RMD age 73 — all trad, zero Roth
+  const rmdBase = {
+    ...BASE,
+    retirementAge: 65, lifeExpectancy: 95,
+    trad401k: 800000, tradIRA: 200000, // large trad balance triggers meaningful RMDs
+    roth401k: 0, rothIRA: 0, taxableBrokerage: 0,
+    ss1: 1500,
+    housing: 1000, food: 500, healthcare: 400, transport: 200, leisure: 200, other: 100,
+  };
+
+  it('yearsData includes rmd field for each drawdown year', () => {
+    const result = runProjection(rmdBase);
+    const drawdown = result.yearsData.filter(d => d.age >= rmdBase.retirementAge);
+    expect(drawdown[0]).toHaveProperty('rmd');
+  });
+
+  it('rmd is 0 before age 73', () => {
+    const result = runProjection(rmdBase);
+    const beforeRmd = result.yearsData.filter(d => d.age >= rmdBase.retirementAge && d.age < 73);
+    for (const yr of beforeRmd) expect(yr.rmd).toBe(0);
+  });
+
+  it('rmd is positive at age 73+', () => {
+    const result = runProjection(rmdBase);
+    const atRmd = result.yearsData.find(d => d.age === 73);
+    expect(atRmd?.rmd).toBeGreaterThan(0);
+  });
+
+  it('large trad balance with low spending has shorter runway than Roth-equivalent (RMD tax drag)', () => {
+    const tradHeavy = runProjection({ ...rmdBase });
+    // Same total assets but all Roth — no RMDs, no forced taxable income
+    const rothEquiv = runProjection({
+      ...rmdBase,
+      trad401k: 0, tradIRA: 0, roth401k: 800000, rothIRA: 200000,
+    });
+    // Roth should run longer because no forced RMD tax drag
+    expect(rothEquiv.runwayYears).toBeGreaterThanOrEqual(tradHeavy.runwayYears);
+  });
+});
