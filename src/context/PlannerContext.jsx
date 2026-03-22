@@ -77,6 +77,11 @@ export function PlannerProvider({ children }) {
   const [inflation, setInflation]                       = useState(3);
   const [healthcareInflation, setHealthcareInflation]   = useState(5.5);
 
+  // Relocation
+  const [planningToMove, setPlanningToMove]     = useState(false);
+  const [moveAge, setMoveAge]                   = useState(65); // matches retirementAge default
+  const [retirementState, setRetirementState]   = useState("Florida");
+
   // Spending
   const [housingType, setHousingType]           = useState("own"); // "own" | "rent"
   const [housing, setHousing]                   = useState(1500);
@@ -125,7 +130,8 @@ export function PlannerProvider({ children }) {
   };
 
   // Derived
-  const stateInfo = STATE_DATA[state] || STATE_DATA["Florida"];
+  const stateInfo           = STATE_DATA[state]           || STATE_DATA["Florida"];
+  const retirementStateInfo = STATE_DATA[retirementState] || STATE_DATA["Florida"];
   const adjustedSS1 = ss1 * ssAdjustmentFactor(ss1ClaimAge);
   const adjustedSS2 = ss2 * ssAdjustmentFactor(ss2ClaimAge);
 
@@ -137,6 +143,9 @@ export function PlannerProvider({ children }) {
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     stateInfo,
+    // If not moving, pass Infinity so hasMoved is never true in calc.js
+    moveAge: planningToMove ? moveAge : Infinity,
+    retirementStateInfo: planningToMove ? retirementStateInfo : stateInfo,
   };
 
   // Combined projection — primary source of truth for verdict / runway
@@ -172,7 +181,7 @@ export function PlannerProvider({ children }) {
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
-    stateInfo,
+    stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
   // Primary solo — primary assets + contributions, 60% expenses
@@ -201,7 +210,7 @@ export function PlannerProvider({ children }) {
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
-    stateInfo,
+    stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
   // Spouse solo — spouse assets + contributions, spouse's own timeline, 60% expenses
@@ -231,7 +240,7 @@ export function PlannerProvider({ children }) {
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
     homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
-    stateInfo,
+    stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
   return (
@@ -248,6 +257,10 @@ export function PlannerProvider({ children }) {
       spouseRetirementAge, setSpouseRetirementAge,
       state, setState,
       stateInfo,
+      planningToMove, setPlanningToMove,
+      moveAge, setMoveAge,
+      retirementState, setRetirementState,
+      retirementStateInfo,
       // Primary contributions
       annualContrib401k, setAnnualContrib401k,
       employerMatch, setEmployerMatch,
