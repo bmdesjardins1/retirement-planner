@@ -1,5 +1,6 @@
 import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
 import { getRmdFactor } from "./rmdTable";
+import { getIrmaaSurcharge } from './irmaaTable.js';
 
 export function verdictConfig(years, lifeExpectancy, age) {
   const remaining = lifeExpectancy - age;
@@ -148,6 +149,8 @@ export function runProjection(inputs) {
       withdrawal: 0,
       income: 0,
       expenses: 0,
+      rmd: 0,
+      irmaa: 0,
     });
   }
 
@@ -251,10 +254,34 @@ export function runProjection(inputs) {
       ? (bridgeHealthcare > 0 ? bridgeHealthcare * activeCol : healthcare * activeCol)
       : healthcare * activeCol;
 
+    // ── IRMAA: Medicare premium surcharge at age 65+ ─────────────────────────
+    // MAGI approximated from guaranteed income only (no portfolio withdrawals —
+    // including them would create a circular dependency with yearlyNeed).
+    // Documented simplifications (see spec):
+    //   1. Gross SS used instead of taxable SS portion (slightly conservative)
+    //   2. realOrdinary is NOT adjusted for survivor phase — pension/rental don't
+    //      necessarily halve after one spouse's death, so this is a reasonable
+    //      approximation. activeRealSS does correctly drop to ssMonthlyAlone*12.
+    const irmaaApplies = ageInYear >= 65;
+    const irmaaMAGI = irmaaApplies ? activeRealSS + realOrdinary : 0;
+    const irmaaSurchargePerPerson = irmaaApplies
+      ? getIrmaaSurcharge(irmaaMAGI, activeMarried)
+      : 0;
+
+    // medicareCount: both spouses on Medicare only while both alive and both ≥ 65.
+    // Derives from isSurvivor (same flag as activeMarried) — always consistent.
+    // In the drawdown loop y=0 corresponds to retirementAge (not currentAge), so the
+    // spouse's age at drawdown year y = spouseAge + (retirementAge - currentAge) + y.
+    const spouseAgeInYear = spouseAge + (retirementAge - currentAge) + y;
+    const spouseOnMedicare = !isSurvivor && hasSpouse && spouseAgeInYear >= 65;
+    const medicareCount = irmaaApplies ? (spouseOnMedicare ? 2 : 1) : 0;
+    const irmaaAnnual = irmaaSurchargePerPerson * medicareCount * 12;
+
     const yearlyNeed =
       (activeBaseNonHousingNeed + effectiveHousingNeed + activeMonthlyPropertyTax) * 12 * generalFactor +
       activeBaseHealthcareNeed * 12 * healthcareFactor +
-      yearlyLTC;
+      yearlyLTC +
+      irmaaAnnual;
     const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
     const pensionContrib = pensionCOLA
       ? activePensionNetMonthly * 12 * generalFactor   // COLA: inflates with general inflation
@@ -352,6 +379,7 @@ export function runProjection(inputs) {
       income: Math.round(yearlyIncome),
       expenses: Math.round(yearlyNeed),
       rmd: Math.round(rmdAmount),
+      irmaa: Math.round(irmaaSurchargePerPerson),   // monthly per-person
     });
 
     if (portfolio <= 0 && runOutYear === null) runOutYear = ageInYear;

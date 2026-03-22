@@ -257,3 +257,55 @@ describe('RMDs (Required Minimum Distributions)', () => {
     expect(rothEquiv.runwayYears).toBeGreaterThanOrEqual(tradHeavy.runwayYears);
   });
 });
+
+describe('IRMAA surcharges', () => {
+  // Low guaranteed income: SS $1,200/mo, no pension — MAGI ≈ $14,400 → $0
+  const lowIncomeBase = {
+    ...BASE,
+    ss1: 1200, ss2: 0, pension: 0,
+    retirementAge: 65, lifeExpectancy: 85,
+  };
+
+  it('irmaa is 0 below income threshold', () => {
+    const result = runProjection(lowIncomeBase);
+    const medicareYears = result.yearsData.filter(d => d.age >= 65);
+    for (const yr of medicareYears) {
+      expect(yr.irmaa).toBe(0);
+    }
+  });
+
+  it('irmaa is 0 before age 65', () => {
+    // retirementAge 62 means ages 62, 63, 64 should have irmaa=0
+    const result = runProjection({ ...lowIncomeBase, retirementAge: 62, lifeExpectancy: 85 });
+    const preMedicare = result.yearsData.filter(d => d.age < 65);
+    for (const yr of preMedicare) {
+      expect(yr.irmaa).toBe(0);
+    }
+  });
+
+  // High income: SS $5,000/mo + pension $4,000/mo → MAGI ≈ $108,000 → bracket 1 → $82.80/mo
+  const highIncomeBase = {
+    ...BASE,
+    ss1: 5000, ss2: 0, pension: 4000, pensionCOLA: false,
+    retirementAge: 65, lifeExpectancy: 85,
+    trad401k: 0, tradIRA: 0, roth401k: 0, rothIRA: 0, taxableBrokerage: 200000,
+  };
+
+  it('irmaa is positive when guaranteed income exceeds threshold', () => {
+    const result = runProjection(highIncomeBase);
+    const firstMedicareYear = result.yearsData.find(d => d.age >= 65);
+    expect(firstMedicareYear.irmaa).toBeGreaterThan(0);
+  });
+
+  it('couple has shorter runway than single at same income (2× IRMAA cost)', () => {
+    // Both spouses ≥ 65 when drawdown starts → medicareCount = 2
+    const couple = runProjection({
+      ...highIncomeBase,
+      hasSpouse: true, spouseAge: 65, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+      survivorFactor: 1.0,
+    });
+    const single = runProjection({ ...highIncomeBase, hasSpouse: false });
+    // Couple pays more IRMAA → shorter (or equal) runway
+    expect(couple.runwayYears).toBeLessThanOrEqual(single.runwayYears);
+  });
+});
