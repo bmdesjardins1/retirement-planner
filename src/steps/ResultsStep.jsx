@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import { usePlanner } from "../context/PlannerContext";
 import Card from "../components/Card";
+import { runMonteCarlo } from "../utils/monteCarlo";
 
 const tooltipStyle = { background: "#0f172a", border: "1px solid rgba(51,65,85,0.8)", borderRadius: 10, fontSize: 12 };
 
@@ -14,6 +16,7 @@ export default function ResultsStep() {
     age, lifeExpectancy, retirementAge,
     spouseAge, spouseLifeExpectancy, spouseRetirementAge,
     longTermCare, ltcStartAge,
+    investmentReturn,
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
@@ -38,6 +41,26 @@ export default function ResultsStep() {
     ? Math.round((results.yearsData.find(d => d.age >= ltcStartAge)?.expenses ?? 0) / 12)
     : 0;
 
+  // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
+  // Only the combined projection gets the band — it's the primary planning view.
+  const effectiveLifeExpectancy = hasSpouse
+    ? Math.max(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
+    : lifeExpectancy;
+
+  const { successRate, bands } = useMemo(() => runMonteCarlo({
+    yearsData: results.yearsData,
+    portfolioAtRetirement: results.portfolioAtRetirement,
+    investmentReturn,
+    retirementAge,
+    effectiveLifeExpectancy,
+  }), [results.yearsData, results.portfolioAtRetirement, investmentReturn, retirementAge, effectiveLifeExpectancy]);
+
+  const successRateColor =
+    successRate >= 90 ? "value--green"  :
+    successRate >= 75 ? "value--yellow" :
+    successRate >= 50 ? "value--orange" :
+                        "value--red";
+
   // Convert spouse ages to primary person's age axis
   const spouseRetirementOnPrimaryAxis = age + (spouseRetirementAge - spouseAge);
   const spouseLifeExpOnPrimaryAxis    = age + (spouseLifeExpectancy - spouseAge);
@@ -48,14 +71,23 @@ export default function ResultsStep() {
     primaryResults.yearsData.length,
     spouseResults?.yearsData.length ?? 0,
   );
+  // Build a lookup from age → MC band so we can merge into chartData by index
+  const bandByAge = Object.fromEntries(bands.map(b => [b.age, b]));
+
   const chartData = Array.from({ length: maxLen }, (_, i) => {
     const base = results.yearsData[i];
     const lastAge = results.yearsData[results.yearsData.length - 1].age;
+    const chartAge = base ? base.age : lastAge + (i - results.yearsData.length + 1);
+    const band = bandByAge[chartAge];
     return {
-      age: base ? base.age : lastAge + (i - results.yearsData.length + 1),
+      age: chartAge,
       combined: results.yearsData[i]?.portfolio ?? 0,
       primary: primaryResults.yearsData[i]?.portfolio ?? 0,
       spouse: spouseResults?.yearsData[i]?.portfolio ?? 0,
+      // MC band: p10 is the floor, bandWidth stacks on top to reach p90.
+      // Rendered with stackId="mc" so Recharts fills the area between them.
+      mcFloor: band?.p10 ?? null,
+      mcBand:  band ? Math.max(band.p90 - band.p10, 0) : null,
     };
   });
   const chartCutoffAge = hasSpouse
@@ -88,6 +120,16 @@ export default function ResultsStep() {
           <div className="verdict-runway-unit">of portfolio / yr</div>
           <div className="verdict-runway-unit" style={{ marginTop: 4, fontSize: 9, opacity: 0.6 }}>
             ≤4% considered safe
+          </div>
+        </div>
+        <div className="verdict-runway" style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}>
+          <div className="verdict-runway-label">Success Rate</div>
+          <div className={`verdict-runway-num ${successRateColor}`}>
+            {successRate}%
+          </div>
+          <div className="verdict-runway-unit">of 500 simulations</div>
+          <div className="verdict-runway-unit" style={{ marginTop: 4, fontSize: 9, opacity: 0.6 }}>
+            portfolio survives to life exp.
           </div>
         </div>
       </div>
@@ -172,6 +214,10 @@ export default function ResultsStep() {
                 label={{ value: "Spouse Life Exp.", fill: "#fb923c", fontSize: 10, position: "insideTopLeft" }}
               />
             )}
+
+            {/* MC confidence band: mcFloor (transparent base) + mcBand (width) stack to fill p10→p90 */}
+            <Area type="monotone" dataKey="mcFloor" stackId="mc" stroke="none" fill="transparent" dot={false} legendType="none" connectNulls={false} />
+            <Area type="monotone" dataKey="mcBand"  stackId="mc" stroke="none" fill="rgba(52,211,153,0.12)" dot={false} name="Market range (10th–90th %ile)" connectNulls={false} />
 
             <Area type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} fill="url(#portGrad)" dot={false} name="Combined" />
             <Area type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="You" />
