@@ -50,6 +50,12 @@ export default function ResultsStep() {
     ? results.yearsData.find(d => d.rmd > 0)
     : null;
 
+  // IRMAA: find first Medicare-eligible year with a surcharge
+  const medicareYears = results.yearsData.filter(
+    d => d.age >= Math.max(retirementAge, 65)
+  );
+  const firstIrmaaYear = medicareYears.find(d => d.irmaa > 0);
+
   // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
   // Only the combined projection gets the band — it's the primary planning view.
   const effectiveLifeExpectancy = hasSpouse
@@ -316,6 +322,34 @@ export default function ResultsStep() {
               traditional (pre-tax) accounts each year — whether you need the money or not.
               Excess withdrawals above your spending need are reinvested in your taxable account but count as
               ordinary income, which can increase your tax bill. Consider Roth conversions before age 73 to reduce future RMDs.
+            </div>
+          </div>
+        )}
+
+        {/* IRMAA surcharge */}
+        {firstIrmaaYear ? (
+          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
+            <div className="metric-box-label">Medicare IRMAA</div>
+            <div className="metric-box-value value--yellow">
+              +${firstIrmaaYear.irmaa.toLocaleString()}/mo per person
+            </div>
+            <div className="metric-box-note">
+              Based on your guaranteed retirement income (SS, pension, other fixed sources).
+              Actual surcharge may be higher if large traditional account withdrawals push
+              your income up.
+            </div>
+            <div className="metric-box-note" style={{ marginTop: 4 }}>
+              Roth conversions before 65 can reduce this — Roth withdrawals don't count
+              toward the Medicare income limit.
+            </div>
+          </div>
+        ) : (
+          <div className="metric-box metric-box--green mt-20" style={{ gridColumn: "1 / -1" }}>
+            <div className="metric-box-label">Medicare IRMAA</div>
+            <div className="metric-box-value value--green">No surcharge</div>
+            <div className="metric-box-note">
+              Your projected income is below the Medicare IRMAA threshold (based on 2024 brackets —
+              not adjusted for future premium changes).
             </div>
           </div>
         )}
