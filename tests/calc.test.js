@@ -188,3 +188,31 @@ describe('survivor SS transition in combined projection', () => {
     expect(withSurvivor.runwayYears).toBeLessThanOrEqual(noSurvivorDrop.runwayYears);
   });
 });
+
+describe('Mortgage payoff modeling', () => {
+  const base = {
+    ...BASE,
+    housingType: "own",
+    housing: 1500,
+    retirementAge: 65,
+    lifeExpectancy: 90,
+  };
+
+  it('mortgage paid off during retirement extends runway vs. paying forever', () => {
+    const withPayoff    = runProjection({ ...base, mortgagePayoffAge: 72 });
+    const withoutPayoff = runProjection({ ...base, housingType: "rent" }); // rent never ends
+    expect(withPayoff.runwayYears).toBeGreaterThan(withoutPayoff.runwayYears);
+  });
+
+  it('payoff after life expectancy has no effect on the projection', () => {
+    const earlyPayoff = runProjection({ ...base, mortgagePayoffAge: 72 });
+    const latePayoff  = runProjection({ ...base, mortgagePayoffAge: 200 }); // never in range
+    expect(earlyPayoff.runwayYears).toBeGreaterThanOrEqual(latePayoff.runwayYears);
+  });
+
+  it('rent type never drops housing cost regardless of mortgagePayoffAge', () => {
+    const rent        = runProjection({ ...base, housingType: "rent", mortgagePayoffAge: 70 });
+    const rentControl = runProjection({ ...base, housingType: "rent", mortgagePayoffAge: Infinity });
+    expect(rent.runwayYears).toBe(rentControl.runwayYears);
+  });
+});

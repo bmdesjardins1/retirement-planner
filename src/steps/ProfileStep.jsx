@@ -15,6 +15,10 @@ export default function ProfileStep() {
     spouseRetirementAge, setSpouseRetirementAge,
     state, setState,
     stateInfo,
+    planningToMove, setPlanningToMove,
+    moveAge, setMoveAge,
+    retirementState, setRetirementState,
+    retirementStateInfo,
   } = usePlanner();
   return (
     <div>
@@ -69,7 +73,7 @@ export default function ProfileStep() {
 
       <Card>
         <div className="mb-8">
-          <label className="field-label">State of Residence</label>
+          <label className="field-label">Current State of Residence</label>
           <div className="select-wrapper">
             <select className="select" value={state} onChange={e => setState(e.target.value)}>
               {Object.keys(STATE_DATA).sort().map(s => <option key={s} value={s}>{s}</option>)}
@@ -97,6 +101,57 @@ export default function ProfileStep() {
             <div className="metric-box-note">national avg = 100</div>
           </div>
         </div>
+      </Card>
+
+      {/* Relocation Planning */}
+      <Card className="mt-20">
+        <div className="mb-16">
+          <label className="field-label">Planning to Move in Retirement?</label>
+          <div className="toggle-group">
+            <button className={`toggle${planningToMove ? " toggle--active" : ""}`}  onClick={() => setPlanningToMove(true)}>Yes</button>
+            <button className={`toggle${!planningToMove ? " toggle--active" : ""}`} onClick={() => setPlanningToMove(false)}>No</button>
+          </div>
+        </div>
+
+        {planningToMove && (
+          <>
+            <div className="grid-2 mb-16">
+              <SliderInput
+                label="Planned Move Age"
+                value={moveAge} min={age} max={lifeExpectancy} step={1}
+                onChange={setMoveAge} suffix=" yrs"
+                note="The year you move, your cost of living, taxes, and property tax all switch to the new state."
+              />
+              <div>
+                <label className="field-label">Retirement State</label>
+                <div className="select-wrapper">
+                  <select className="select" value={retirementState} onChange={e => setRetirementState(e.target.value)}>
+                    {Object.keys(STATE_DATA).sort().map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid-3">
+              <div className="metric-box metric-box--green">
+                <div className="metric-box-label">Income Tax (new state)</div>
+                <div className="metric-box-value value--green">{(retirementStateInfo.incomeTax * 100).toFixed(1)}%</div>
+                {!retirementStateInfo.hasSSIncomeTax && <div className="metric-box-note">SS benefits not taxed</div>}
+                {retirementStateInfo.hasSSIncomeTax  && <div className="metric-box-warn">⚠ SS benefits taxed</div>}
+              </div>
+              <div className="metric-box metric-box--purple">
+                <div className="metric-box-label">Property Tax (new state)</div>
+                <div className="metric-box-value value--purple">{(retirementStateInfo.avgPropertyTaxRate * 100).toFixed(2)}%</div>
+                <div className="metric-box-note">of home value / year</div>
+              </div>
+              <div className="metric-box metric-box--yellow">
+                <div className="metric-box-label">Cost of Living (new state)</div>
+                <div className="metric-box-value value--yellow">{retirementStateInfo.costOfLivingIndex}</div>
+                <div className="metric-box-note">national avg = 100</div>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );
