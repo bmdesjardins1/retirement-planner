@@ -17,6 +17,8 @@ export default function ResultsStep() {
     spouseAge, spouseLifeExpectancy, spouseRetirementAge,
     longTermCare, ltcStartAge,
     investmentReturn,
+    trad401k, tradIRA, hasTrad401k, hasTradIRA,
+    spouseTrad401k, spouseTradIRA, spouseHasTrad401k, spouseHasTradIRA,
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
@@ -40,6 +42,13 @@ export default function ResultsStep() {
   const ltcMonthlyAtStart = longTermCare > 0
     ? Math.round((results.yearsData.find(d => d.age >= ltcStartAge)?.expenses ?? 0) / 12)
     : 0;
+
+  // RMD callout: find first year where a forced RMD appears in the projection
+  const hasTradAccounts = (hasTrad401k && trad401k > 0) || (hasTradIRA && tradIRA > 0) ||
+    (hasSpouse && ((spouseHasTrad401k && spouseTrad401k > 0) || (spouseHasTradIRA && spouseTradIRA > 0)));
+  const firstRmdYear = hasTradAccounts
+    ? results.yearsData.find(d => d.rmd > 0)
+    : null;
 
   // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
   // Only the combined projection gets the band — it's the primary planning view.
@@ -298,6 +307,19 @@ export default function ResultsStep() {
             </div>
           )}
         </div>
+        {firstRmdYear && (
+          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
+            <div className="metric-box-label">Required Minimum Distributions (RMDs)</div>
+            <div className="metric-box-value value--yellow">${Math.round(firstRmdYear.rmd / 12).toLocaleString()}/mo</div>
+            <div className="metric-box-note">
+              Starting at age {firstRmdYear.age}, the IRS requires you to withdraw a minimum amount from your
+              traditional (pre-tax) accounts each year — whether you need the money or not.
+              Excess withdrawals above your spending need are reinvested in your taxable account but count as
+              ordinary income, which can increase your tax bill. Consider Roth conversions before age 73 to reduce future RMDs.
+            </div>
+          </div>
+        )}
+
         <p className="disclaimer">
           ⚠ This tool provides estimates for planning purposes only and is not financial advice. Consult a certified financial planner (CFP) for personalized guidance. Tax rates, Social Security rules, and cost of living figures are approximate and subject to change.
         </p>

@@ -1,4 +1,5 @@
 import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
+import { getRmdFactor } from "./rmdTable";
 
 export function verdictConfig(years, lifeExpectancy, age) {
   const remaining = lifeExpectancy - age;
@@ -265,32 +266,46 @@ export function runProjection(inputs) {
 
     // --- Per-bucket growth (grow first, then withdraw — matches existing loop structure) ---
     const bucketGrowthRate = investmentReturn / 100;
+    const priorTradBalance = tradBucket; // capture before growth for RMD calculation
     taxableBucket += taxableBucket * bucketGrowthRate;
     tradBucket    += tradBucket    * bucketGrowthRate;
     rothBucket    += rothBucket    * bucketGrowthRate;
+
+    // --- RMD: IRS requires minimum withdrawals from traditional accounts starting at 73 ---
+    // RMD = prior year-end balance / IRS Uniform Lifetime factor for this age.
+    // If planned trad spending < RMD, the difference is forced out and reinvested in
+    // the taxable bucket (money stays in portfolio, but it's now taxable ordinary income).
+    const rmdFactor = getRmdFactor(ageInYear);
+    const rmdAmount = rmdFactor ? priorTradBalance / rmdFactor : 0;
 
     // --- Step 1: Spending allocation across buckets (taxable → Traditional → Roth) ---
     // Allocate only the net spending gap. Taxes computed from this split avoid circular dependency.
     const taxableSpend = Math.min(taxableBucket, preTaxGap);
     const remaining1   = preTaxGap - taxableSpend;
-    const tradSpend    = Math.min(tradBucket, remaining1);
-    const rothSpend    = Math.min(rothBucket, remaining1 - tradSpend);
+    // Trad spend must be at least the RMD amount (capped at available balance)
+    const tradSpendNatural = Math.min(tradBucket, remaining1);
+    const tradSpend        = Math.min(tradBucket, Math.max(tradSpendNatural, rmdAmount));
+    const rmdExcess        = Math.max(tradSpend - tradSpendNatural, 0); // forced above spending need
+    const rothSpend        = Math.min(rothBucket, remaining1 - tradSpendNatural);
 
     // --- Step 2: Tax computation based on spending split ---
-    // State tax on Traditional spending (flat-rate gross-up is exact)
+    // State tax on Traditional spending (flat-rate gross-up is exact).
+    // RMD excess is already included in tradSpend so it's captured here automatically.
     const tradGross      = activeStateTaxRate < 1 ? tradSpend / (1 - activeStateTaxRate) : tradSpend;
     const stateTaxOnTrad = tradGross - tradSpend;
 
-    // Federal tax — two-iteration real-terms gross-up
+    // Federal tax — two-iteration real-terms gross-up.
+    // rmdExcess / generalFactor adds the forced RMD income to ordinary income for bracket purposes.
     const realTradGross    = tradGross / generalFactor;
     const realCapGains     = (taxableSpend * 0.60) / generalFactor;
+    const realRmdOrdinary  = realOrdinary + rmdExcess / generalFactor;
     const { tax: realFed1 } = estimateFederalTax({
-      ssAnnual: activeRealSS, ordinaryIncome: realOrdinary,
+      ssAnnual: activeRealSS, ordinaryIncome: realRmdOrdinary,
       withdrawalEstimate: realTradGross, capitalGains: realCapGains,
       married: activeMarried, age: ageInYear,
     });
     const { tax: realFed2, taxableSS } = estimateFederalTax({
-      ssAnnual: activeRealSS, ordinaryIncome: realOrdinary,
+      ssAnnual: activeRealSS, ordinaryIncome: realRmdOrdinary,
       withdrawalEstimate: realTradGross + realFed1, capitalGains: realCapGains,
       married: activeMarried, age: ageInYear,
     });
@@ -310,6 +325,8 @@ export function runProjection(inputs) {
     taxableBucket -= taxableSpend;
     tradBucket    -= tradGross;   // gross amount (includes state tax)
     rothBucket    -= rothSpend;
+    // RMD excess is reinvested in taxable account (already withdrawn from trad above)
+    taxableBucket += rmdExcess;
 
     // Remaining taxes drawn from buckets in same order
     let taxesLeft = capGainsTax + federalTax;
@@ -334,6 +351,7 @@ export function runProjection(inputs) {
       withdrawal: Math.round(yearlyWithdrawal),
       income: Math.round(yearlyIncome),
       expenses: Math.round(yearlyNeed),
+      rmd: Math.round(rmdAmount),
     });
 
     if (portfolio <= 0 && runOutYear === null) runOutYear = ageInYear;
