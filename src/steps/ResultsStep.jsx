@@ -327,7 +327,7 @@ export default function ResultsStep() {
         )}
 
         {/* IRMAA surcharge */}
-        {firstIrmaaYear ? (
+        {medicareYears.length > 0 && (firstIrmaaYear ? (
           <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
             <div className="metric-box-label">Medicare IRMAA</div>
             <div className="metric-box-value value--yellow">
@@ -352,7 +352,7 @@ export default function ResultsStep() {
               not adjusted for future premium changes).
             </div>
           </div>
-        )}
+        ))}
 
         <p className="disclaimer">
           ⚠ This tool provides estimates for planning purposes only and is not financial advice. Consult a certified financial planner (CFP) for personalized guidance. Tax rates, Social Security rules, and cost of living figures are approximate and subject to change.
