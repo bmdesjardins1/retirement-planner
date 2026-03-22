@@ -31,13 +31,13 @@ export default function SpendingStep() {
       {/* Housing Payment */}
       <Card className="mb-20">
         <h3 className="card-heading">Housing Payment</h3>
-        <div className="tab-row" style={{ marginBottom: 16 }}>
+        <div className="toggle-group" style={{ marginBottom: 16 }}>
           <button
-            className={`tab-btn${housingType === "own" ? " tab-btn--active" : ""}`}
+            className={`toggle${housingType === "own" ? " toggle--active" : ""}`}
             onClick={() => setHousingType("own")}
           >I have a mortgage</button>
           <button
-            className={`tab-btn${housingType === "rent" ? " tab-btn--active" : ""}`}
+            className={`toggle${housingType === "rent" ? " toggle--active" : ""}`}
             onClick={() => setHousingType("rent")}
           >I rent</button>
         </div>
