@@ -82,6 +82,8 @@ runProjection({
   // ...existing spouse overrides (spouseAge as age, etc.)...
   pension: spousePension,           // spouse's own pension, not primary's
   pensionCOLA: spousePensionCOLA,   // spouse's own COLA flag
+  spousePension: 0,                 // zero out to prevent double-counting in calc.js
+                                    // (sharedInputs passes spousePension; pension above also = spousePension)
   // survivorPct fields are irrelevant here (hasSpouse = false in solo projection)
 })
 ```
