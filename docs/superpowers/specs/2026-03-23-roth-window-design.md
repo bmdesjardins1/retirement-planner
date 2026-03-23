@@ -63,6 +63,10 @@ After the existing `homeSaleYear` lookup, add:
 // at least 2 years before RMDs begin at 73. rothWindowYears is an inclusive count of ages
 // (e.g. retirementAge=65 → ages 65,66,67,68,69,70,71,72 = 8 years).
 // Minimum of 2 years avoids showing "Ages 72–72" (single-age range, visually confusing).
+// Note: intentionally checks only primary accounts (not spouse). The existing hasTradAccounts
+// check on line 47 includes spouse accounts for RMD detection — this is an accepted asymmetry.
+// A user whose only traditional accounts belong to the spouse will see the RMD callout but not
+// this one. See Simplification #3.
 const rothWindowYears = 73 - retirementAge;
 const showRothWindow =
   ((hasTrad401k && trad401k > 0) || (hasTradIRA && tradIRA > 0)) &&
@@ -75,7 +79,7 @@ Place after the home sale callout block and **before the `<p className="disclaim
 
 ```jsx
 {showRothWindow && (
-  <div className="metric-box mt-20" style={{ gridColumn: "1 / -1" }}>
+  <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
     <div className="metric-box-label">Roth Conversion Window</div>
     <div className="metric-box-value value--yellow">
       Ages {retirementAge}–72
@@ -119,4 +123,5 @@ No unit tests — pure JSX conditional rendering with trivial arithmetic. No com
 4. **Hidden when retirementAge ≥ 72:** `retirementAge = 72` → `rothWindowYears = 1`, fails `>= 2` guard, callout does not appear
 5. **Hidden when retirementAge = 73:** `rothWindowYears = 0`, callout does not appear
 6. **Minimum window:** `retirementAge = 71` → callout shows "Ages 71–72" and "2 years"
-7. **Coexists with other callouts:** RMD, IRMAA, and home sale boxes still display correctly
+7. **IRA-only path:** `hasTrad401k = false`, `trad401k = 0`, `hasTradIRA = true`, `tradIRA > 0`, `retirementAge = 65` → callout appears (IRA alone triggers it)
+8. **Coexists with other callouts:** RMD, IRMAA, and home sale boxes still display correctly
