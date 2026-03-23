@@ -56,7 +56,8 @@ export default function ResultsStep() {
   );
   const firstIrmaaYear = medicareYears.find(d => d.irmaa > 0);
 
-  // Home sale: find the year proceeds were injected
+  // Home sale: find the year proceeds were injected (only appears for drawdown-phase sales,
+  // since homeSaleAge is constrained to >= retirementAge by the context setters)
   const homeSaleYear = results.yearsData.find(d => d.homeSaleProceeds > 0);
 
   // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
@@ -364,8 +365,8 @@ export default function ResultsStep() {
               +${homeSaleYear.homeSaleProceeds.toLocaleString()}
             </div>
             <div className="metric-box-note">
-              At age {homeSaleYear.age} — net proceeds after fees added to your portfolio.
-              Your taxable investments will grow from this injection onward.
+              At age {homeSaleYear.age} — one-time lump sum added to your portfolio after ~5% in realtor and closing costs.
+              Capital gains tax is not modeled here — if your home has appreciated significantly, consult a tax advisor.
             </div>
           </div>
         )}
