@@ -326,7 +326,10 @@ describe('Home equity sale', () => {
     const saleYear = result.yearsData.find(d => d.age === 70);
     expect(saleYear.homeSaleProceeds).toBeGreaterThan(0);
     // homeValue 300000 - mortgageBalance 0 = 300000 × 0.95 = 285000
-    expect(saleYear.homeSaleProceeds).toBeCloseTo(285000, -3);
+    expect(saleYear.homeSaleProceeds).toBe(285000);
+    // proceeds appear only once — all years after sale must be 0
+    const postSale = result.yearsData.filter(d => d.age > 70);
+    expect(postSale.every(d => d.homeSaleProceeds === 0)).toBe(true);
   });
 
   it('property tax is lower in and after sale year compared to year before', () => {
