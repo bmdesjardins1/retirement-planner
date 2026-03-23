@@ -44,6 +44,9 @@ export function runProjection(inputs) {
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
     trad401k = 0, roth401k = 0, tradIRA = 0, rothIRA = 0, taxableBrokerage = 0,
     homeValue, homeOwned,
+    mortgageBalance = 0,
+    homeSaleIntent = "keep",
+    homeSaleAge = Infinity,
     investmentReturn, inflation, healthcareInflation,
     housingType = "rent", housing, mortgagePayoffAge = Infinity,
     food, healthcare, bridgeHealthcare = 0, transport, leisure, other,
@@ -151,6 +154,7 @@ export function runProjection(inputs) {
       expenses: 0,
       rmd: 0,
       irmaa: 0,
+      homeSaleProceeds: 0,
     });
   }
 
@@ -226,7 +230,12 @@ export function runProjection(inputs) {
     // Switch to retirement state after moveAge (CoL, property tax, income tax all change)
     const hasMoved = ageInYear >= moveAge;
     const activeCol                = hasMoved ? retCol                : col;
-    const activeMonthlyPropertyTax = hasMoved ? retMonthlyPropertyTax : monthlyPropertyTax;
+    // Home sale: property tax stops in and after the sale year.
+    // Stopping the full year (not prorated) is an accepted simplification.
+    const homeSold = homeOwned && homeSaleIntent === "sell" && ageInYear >= homeSaleAge;
+    const activeMonthlyPropertyTax = homeSold
+      ? 0
+      : (hasMoved ? retMonthlyPropertyTax : monthlyPropertyTax);
 
     // Expense bases: re-derived from activeCol + activeSurvFactor so both transitions compose cleanly
     const activeBaseNonHousingNeed = (food + transport + leisure + other) * activeCol * activeSurvFactor;
@@ -297,6 +306,20 @@ export function runProjection(inputs) {
     taxableBucket += taxableBucket * bucketGrowthRate;
     tradBucket    += tradBucket    * bucketGrowthRate;
     rothBucket    += rothBucket    * bucketGrowthRate;
+
+    // Home sale proceeds: inject into taxableBucket at the sale year.
+    // taxableBucket is the right destination — proceeds go into a taxable brokerage
+    // account in practice. The 60%-gains assumption applies on withdrawal (a minor
+    // overstatement since actual home sale proceeds are tax-free principal after
+    // the primary residence exclusion, but acceptable for a planning tool).
+    // Net proceeds = 95% of equity after realtor fees + closing costs.
+    // Both mortgageBalance and homeValue are today's values — mortgage paydown
+    // and home appreciation before the sale date are not modeled.
+    let homeSaleProceeds = 0;
+    if (homeOwned && homeSaleIntent === "sell" && ageInYear === homeSaleAge) {
+      homeSaleProceeds = Math.max(0, homeValue - mortgageBalance) * 0.95;
+      taxableBucket += homeSaleProceeds;
+    }
 
     // --- RMD: IRS requires minimum withdrawals from traditional accounts starting at 73 ---
     // RMD = prior year-end balance / IRS Uniform Lifetime factor for this age.
@@ -380,6 +403,7 @@ export function runProjection(inputs) {
       expenses: Math.round(yearlyNeed),
       rmd: Math.round(rmdAmount),
       irmaa: Math.round(irmaaSurchargePerPerson),   // monthly per-person
+      homeSaleProceeds: Math.round(homeSaleProceeds),
     });
 
     if (portfolio <= 0 && runOutYear === null) runOutYear = ageInYear;
