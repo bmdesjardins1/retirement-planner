@@ -313,7 +313,8 @@ export function runProjection(inputs) {
     // overstatement since actual home sale proceeds are tax-free principal after
     // the primary residence exclusion, but acceptable for a planning tool).
     // Net proceeds = 95% of equity after realtor fees + closing costs.
-    // mortgageBalance is today's balance — paydown before sale is not modeled.
+    // Both mortgageBalance and homeValue are today's values — mortgage paydown
+    // and home appreciation before the sale date are not modeled.
     let homeSaleProceeds = 0;
     if (homeOwned && homeSaleIntent === "sell" && ageInYear === homeSaleAge) {
       homeSaleProceeds = Math.max(0, homeValue - mortgageBalance) * 0.95;
