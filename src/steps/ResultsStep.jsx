@@ -60,6 +60,19 @@ export default function ResultsStep() {
   // since homeSaleAge is constrained to >= retirementAge by the context setters)
   const homeSaleYear = results.yearsData.find(d => d.homeSaleProceeds > 0);
 
+  // Roth conversion window: show when user has active traditional accounts and retires with
+  // at least 2 years before RMDs begin at 73. rothWindowYears is an inclusive count of ages
+  // (e.g. retirementAge=65 → ages 65,66,67,68,69,70,71,72 = 8 years).
+  // Minimum of 2 years avoids showing "Ages 72–72" (single-age range, visually confusing).
+  // Note: intentionally checks only primary accounts (not spouse). The existing hasTradAccounts
+  // check above includes spouse accounts for RMD detection — this is an accepted asymmetry.
+  // A user whose only traditional accounts belong to the spouse will see the RMD callout but not
+  // this one. See spec Simplification #3.
+  const rothWindowYears = 73 - retirementAge;
+  const showRothWindow =
+    ((hasTrad401k && trad401k > 0) || (hasTradIRA && tradIRA > 0)) &&
+    rothWindowYears >= 2;
+
   // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
   // Only the combined projection gets the band — it's the primary planning view.
   const effectiveLifeExpectancy = hasSpouse
@@ -367,6 +380,20 @@ export default function ResultsStep() {
             <div className="metric-box-note">
               At age {homeSaleYear.age} — one-time lump sum added to your portfolio after ~5% in realtor and closing costs.
               Capital gains tax is not modeled here — if your home has appreciated significantly, consult a tax advisor.
+            </div>
+          </div>
+        )}
+
+        {showRothWindow && (
+          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
+            <div className="metric-box-label">Roth Conversion Window</div>
+            <div className="metric-box-value value--yellow">
+              Ages {retirementAge}–72
+            </div>
+            <div className="metric-box-note">
+              {rothWindowYears} years before RMDs begin at 73.
+              Your income may be lower during this window — converting some traditional savings to Roth
+              could reduce your lifetime tax bill. Roth accounts have no RMDs and withdrawals are tax-free.
             </div>
           </div>
         )}
