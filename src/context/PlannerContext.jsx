@@ -73,6 +73,9 @@ export function PlannerProvider({ children }) {
   // Shared assets & growth
   const [homeValue, setHomeValue]                       = useState(320000);
   const [homeOwned, setHomeOwned]                       = useState(true);
+  const [mortgageBalance, setMortgageBalance]           = useState(0);
+  const [homeSaleIntent, setHomeSaleIntent]             = useState("keep");
+  const [homeSaleAge, setHomeSaleAge]                   = useState(retirementAge);
   const [investmentReturn, setInvestmentReturn]         = useState(5);
   const [inflation, setInflation]                       = useState(3);
   const [healthcareInflation, setHealthcareInflation]   = useState(5.5);
@@ -100,6 +103,7 @@ export function PlannerProvider({ children }) {
     setAgeRaw(v);
     if (retirementAge < v)   setRetirementAgeRaw(v);
     if (lifeExpectancy <= v) setLifeExpectancyRaw(v + 1);
+    if (homeSaleAge < v)     setHomeSaleAge(v);
   };
 
   const setRetirementAge = (v) => {
@@ -107,11 +111,13 @@ export function PlannerProvider({ children }) {
     if (lifeExpectancy <= v) setLifeExpectancyRaw(v + 1);
     if (partTimeEndAge < v)  setPartTimeEndAge(v);
     if (ltcStartAge < v)     setLtcStartAge(v);
+    if (homeSaleAge < v)     setHomeSaleAge(v);
   };
 
   const setLifeExpectancy = (v) => {
     setLifeExpectancyRaw(Math.max(v, retirementAge + 1));
     if (ltcStartAge > v)     setLtcStartAge(v);
+    if (homeSaleAge > v)     setHomeSaleAge(v);
   };
 
   const setSpouseAge = (v) => {
@@ -138,7 +144,7 @@ export function PlannerProvider({ children }) {
   // Shared inputs passed to every projection
   const sharedInputs = {
     pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
-    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge, investmentReturn, inflation, healthcareInflation,
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
@@ -180,7 +186,7 @@ export function PlannerProvider({ children }) {
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
-    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge, investmentReturn, inflation, healthcareInflation,
     stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
@@ -209,7 +215,7 @@ export function PlannerProvider({ children }) {
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
-    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge, investmentReturn, inflation, healthcareInflation,
     stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
@@ -239,7 +245,7 @@ export function PlannerProvider({ children }) {
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
-    homeValue, homeOwned, investmentReturn, inflation, healthcareInflation,
+    homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge, investmentReturn, inflation, healthcareInflation,
     stateInfo, planningToMove, moveAge, retirementState,
   ]);
 
@@ -307,6 +313,9 @@ export function PlannerProvider({ children }) {
       // Shared assets
       homeValue, setHomeValue,
       homeOwned, setHomeOwned,
+      mortgageBalance, setMortgageBalance,
+      homeSaleIntent, setHomeSaleIntent,
+      homeSaleAge, setHomeSaleAge,
       investmentReturn, setInvestmentReturn,
       inflation, setInflation,
       healthcareInflation, setHealthcareInflation,

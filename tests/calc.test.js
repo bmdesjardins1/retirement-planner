@@ -309,3 +309,70 @@ describe('IRMAA surcharges', () => {
     expect(couple.runwayYears).toBeLessThanOrEqual(single.runwayYears);
   });
 });
+
+describe('Home equity sale', () => {
+  it('homeSaleIntent keep produces no sale proceeds', () => {
+    const result = runProjection({ ...BASE, homeSaleIntent: 'keep', homeSaleAge: 70 });
+    // Use every(d => d.homeSaleProceeds === 0) — not some(...> 0) — so this test
+    // FAILS before implementation (undefined === 0 is false). The >0 form would
+    // pass even when the field doesn't exist yet (undefined > 0 === false).
+    expect(result.yearsData.every(d => d.homeSaleProceeds === 0)).toBe(true);
+  });
+
+  it('sell injects proceeds at sale age', () => {
+    const result = runProjection({
+      ...BASE, mortgageBalance: 0, homeSaleIntent: 'sell', homeSaleAge: 70,
+    });
+    const saleYear = result.yearsData.find(d => d.age === 70);
+    expect(saleYear.homeSaleProceeds).toBeGreaterThan(0);
+    // homeValue 300000 - mortgageBalance 0 = 300000 × 0.95 = 285000
+    expect(saleYear.homeSaleProceeds).toBe(285000);
+    // proceeds appear only once — all years after sale must be 0
+    const postSale = result.yearsData.filter(d => d.age > 70);
+    expect(postSale.every(d => d.homeSaleProceeds === 0)).toBe(true);
+  });
+
+  it('property tax is lower in and after sale year compared to year before', () => {
+    const sellResult = runProjection({ ...BASE, mortgageBalance: 0, homeSaleIntent: 'sell', homeSaleAge: 70 });
+    const keepResult = runProjection({ ...BASE, mortgageBalance: 0, homeSaleIntent: 'keep', homeSaleAge: 70 });
+    const sellYear = sellResult.yearsData.find(d => d.age === 70);
+    const keepYear = keepResult.yearsData.find(d => d.age === 70);
+    // sell scenario zeroes property tax at sale year; keep scenario retains it
+    expect(sellYear.expenses).toBeLessThan(keepYear.expenses);
+  });
+
+  it('proceeds are 0 when mortgageBalance >= homeValue', () => {
+    const result = runProjection({
+      ...BASE, mortgageBalance: 400000, homeSaleIntent: 'sell', homeSaleAge: 70,
+    });
+    const saleYear = result.yearsData.find(d => d.age === 70);
+    expect(saleYear.homeSaleProceeds).toBe(0);
+  });
+
+  it('selling home extends runway compared to keeping', () => {
+    // Tight scenario: portfolio lasts ~1yr, depletes at age 66 in keep scenario.
+    // Sale at 66 injects proceeds BEFORE depletion in sell scenario → dramatically longer runway.
+    const tight = {
+      ...BASE,
+      ss1: 1000,
+      trad401k: 60000, tradIRA: 0, taxableBrokerage: 0,
+      annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0,
+      homeValue: 350000, mortgageBalance: 0, homeSaleAge: 66,
+    };
+    const sell = runProjection({ ...tight, homeSaleIntent: 'sell' });
+    const keep = runProjection({ ...tight, homeSaleIntent: 'keep' });
+    expect(sell.runwayYears).toBeGreaterThan(keep.runwayYears);
+  });
+
+  it('proceeds appear in first drawdown year when homeSaleAge equals retirementAge', () => {
+    const result = runProjection({
+      ...BASE, mortgageBalance: 0, homeSaleIntent: 'sell', homeSaleAge: 65,
+    });
+    const firstYear = result.yearsData.find(d => d.age === 65);
+    expect(firstYear.homeSaleProceeds).toBeGreaterThan(0);
+    // Property tax also stops at age 65 — expenses less than keep version
+    const keepResult = runProjection({ ...BASE, homeSaleIntent: 'keep', homeSaleAge: 65 });
+    const keepFirst  = keepResult.yearsData.find(d => d.age === 65);
+    expect(firstYear.expenses).toBeLessThan(keepFirst.expenses);
+  });
+});
