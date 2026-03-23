@@ -14,6 +14,10 @@ export default function IncomeStep() {
     adjustedSS1, adjustedSS2,
     pension, setPension,
     pensionCOLA, setPensionCOLA,
+    pensionSurvivorPct, setPensionSurvivorPct,
+    spousePension, setSpousePension,
+    spousePensionCOLA, setSpousePensionCOLA,
+    spousePensionSurvivorPct, setSpousePensionSurvivorPct,
     partTimeIncome, setPartTimeIncome,
     partTimeEndAge, setPartTimeEndAge,
     rentalIncome, setRentalIncome,
@@ -67,6 +71,55 @@ export default function IncomeStep() {
                 <button className={`toggle${!pensionCOLA ? ' toggle--active' : ''}`} onClick={() => setPensionCOLA(false)}>No (fixed)</button>
               </div>
             </div>
+          )}
+          {pension > 0 && hasSpouse && (
+            <div className="mb-20">
+              <label className="field-label">What % of your pension does your spouse receive after your death?</label>
+              <p className="field-note">Most pensions require you to elect a survivor benefit at retirement — check your plan documents. Single life pays more now but nothing to your spouse after your death.</p>
+              <div className="toggle-group">
+                {[0, 50, 75, 100].map(pct => (
+                  <button
+                    key={pct}
+                    className={`toggle${pensionSurvivorPct === pct ? ' toggle--active' : ''}`}
+                    onClick={() => setPensionSurvivorPct(pct)}
+                  >
+                    {pct === 0 ? '0% (Single Life)' : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {hasSpouse && (
+            <>
+              <SliderInput label="Spouse's Pension" value={spousePension} min={0} max={5000} step={50} onChange={setSpousePension} prefix="$" suffix="/mo" />
+              {spousePension > 0 && (
+                <div className="mb-20">
+                  <label className="field-label">Does your spouse's pension increase with inflation each year?</label>
+                  <p className="field-note">Most pensions pay a fixed dollar amount for life. Some government pensions include annual cost-of-living increases.</p>
+                  <div className="toggle-group">
+                    <button className={`toggle${spousePensionCOLA ? ' toggle--active' : ''}`} onClick={() => setSpousePensionCOLA(true)}>Yes</button>
+                    <button className={`toggle${!spousePensionCOLA ? ' toggle--active' : ''}`} onClick={() => setSpousePensionCOLA(false)}>No (fixed)</button>
+                  </div>
+                </div>
+              )}
+              {spousePension > 0 && (
+                <div className="mb-20">
+                  <label className="field-label">What % of your spouse's pension do you receive after their death?</label>
+                  <p className="field-note">Most pensions require you to elect a survivor benefit at retirement — check your plan documents.</p>
+                  <div className="toggle-group">
+                    {[0, 50, 75, 100].map(pct => (
+                      <button
+                        key={pct}
+                        className={`toggle${spousePensionSurvivorPct === pct ? ' toggle--active' : ''}`}
+                        onClick={() => setSpousePensionSurvivorPct(pct)}
+                      >
+                        {pct === 0 ? '0% (Single Life)' : `${pct}%`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <SliderInput label="Part-Time Work"   value={partTimeIncome}  min={0} max={5000} step={100} onChange={setPartTimeIncome}  prefix="$" suffix="/mo" />
           {partTimeIncome > 0 && (
