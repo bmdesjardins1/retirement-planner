@@ -88,7 +88,16 @@ runProjection({
 })
 ```
 
-The `primaryResults` `useMemo` does NOT need this override — `pension` in sharedInputs is already the primary's pension.
+The `primaryResults` `useMemo` also needs `spousePension: 0` to prevent the pre-loop summary values (`netMonthlyIncome`, `stateTaxMonthly`) from leaking the spouse pension into the primary-solo summary cards. The drawdown loop is safe because `activeSpousePensionNet` is guarded by `!hasSpouse ? 0`, but the pre-loop summary is not:
+
+```js
+// primaryResults useMemo:
+runProjection({
+  ...sharedInputs,
+  // ...existing primary overrides...
+  spousePension: 0,   // prevent spouse pension from appearing in primary-solo summary cards
+})
+```
 
 **Step 4 — Update `useMemo` dependency arrays**
 
