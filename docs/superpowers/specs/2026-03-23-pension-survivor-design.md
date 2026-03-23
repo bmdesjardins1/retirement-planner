@@ -51,7 +51,61 @@ Four new state fields in `PlannerContext.jsx`:
 
 ### `src/context/PlannerContext.jsx`
 
-Add four new `useState` declarations and expose them via the context value object. Pass the new fields through `sharedInputs` so all three projections (combined, primaryOnly, spouseOnly) receive them.
+**Step 1 — Add useState declarations**
+
+```js
+const [pensionSurvivorPct,     setPensionSurvivorPct]     = useState(100);
+const [spousePension,          setSpousePension]          = useState(0);
+const [spousePensionCOLA,      setSpousePensionCOLA]      = useState(false);
+const [spousePensionSurvivorPct, setSpousePensionSurvivorPct] = useState(100);
+```
+
+**Step 2 — Add to `sharedInputs`**
+
+The `sharedInputs` object (around line 145) is spread into all three `useMemo` calls. Add all four new fields:
+
+```js
+const sharedInputs = {
+  // ...existing fields...
+  pensionSurvivorPct, spousePension, spousePensionCOLA, spousePensionSurvivorPct,
+};
+```
+
+**Step 3 — Override pension fields for spouse-solo projection**
+
+The `spouseResults` `useMemo` call passes `...sharedInputs`, which includes `pension` (the primary's pension). In the spouse-solo projection, the spouse is modeled as a single person, so their own pension must be passed as `pension`. Override after the spread:
+
+```js
+// spouseResults useMemo:
+runProjection({
+  ...sharedInputs,
+  // ...existing spouse overrides (spouseAge as age, etc.)...
+  pension: spousePension,           // spouse's own pension, not primary's
+  pensionCOLA: spousePensionCOLA,   // spouse's own COLA flag
+  // survivorPct fields are irrelevant here (hasSpouse = false in solo projection)
+})
+```
+
+The `primaryResults` `useMemo` does NOT need this override — `pension` in sharedInputs is already the primary's pension.
+
+**Step 4 — Update `useMemo` dependency arrays**
+
+All three `useMemo` calls have explicit dependency arrays. Add the four new state variables to each:
+
+```
+pensionSurvivorPct, spousePension, spousePensionCOLA, spousePensionSurvivorPct
+```
+
+**Step 5 — Add to context `value` object**
+
+Add all four state variables and their four setters to the `<PlannerContext.Provider value={{...}}>` object (8 new entries):
+
+```js
+pensionSurvivorPct, setPensionSurvivorPct,
+spousePension, setSpousePension,
+spousePensionCOLA, setSpousePensionCOLA,
+spousePensionSurvivorPct, setSpousePensionSurvivorPct,
+```
 
 ### `src/utils/calc.js`
 
@@ -118,6 +172,19 @@ const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax   + spousePension
 
 ### `src/steps/IncomeStep.jsx`
 
+**Step 1 — Destructure new context values**
+
+Add to the `usePlanner()` destructuring:
+
+```js
+pensionSurvivorPct, setPensionSurvivorPct,
+spousePension, setSpousePension,
+spousePensionCOLA, setSpousePensionCOLA,
+spousePensionSurvivorPct, setSpousePensionSurvivorPct,
+```
+
+**Step 2 — UI changes**
+
 All changes are inside the existing "Other Income" card. No new cards, no new tabs.
 
 **Primary pension section (existing, extended):**
@@ -155,9 +222,9 @@ What % of your spouse's pension do you receive after their death?
 
 1. **Pension start age not modeled.** Both pensions are assumed to begin at the primary's retirement age. Users with pensions that start at a different age (e.g., military retirement at 42, deferred vested pension at 65) cannot model that precisely. Acceptable for this phase.
 
-2. **`realOrdinary` (federal tax MAGI estimate) not updated for spouse pension.** The existing `nonSSWithPT` / `nonSSWithoutPT` includes only the primary pension for federal tax estimation. Adding spouse pension would improve accuracy but the federal tax estimate is already an approximation. Extend in a future tax accuracy pass.
+2. **`realOrdinary` / MAGI not updated for spouse pension.** The existing `nonSSWithPT` / `nonSSWithoutPT` vars include only the primary pension. These feed both the IRMAA calculation and the year-0 federal tax estimate on the results card. A spouse pension of $3,000/mo ($36K/yr) could push a household over an IRMAA threshold and will cause the federal tax summary card to understate the tax estimate. Both are accepted inaccuracies for this phase; extend in a future tax accuracy pass.
 
-3. **Solo projections (primaryOnly, spouseOnly) ignore survivor %.** The `primaryOnly` and `spouseOnly` projections model each person in isolation (no spouse). In these projections `hasSpouse = false`, so `isSurvivor` never triggers and survivor % is irrelevant. No changes needed for solo projections.
+3. **Solo projections (primaryOnly, spouseOnly) ignore survivor %.** The `primaryOnly` and `spouseOnly` projections model each person in isolation (no spouse). In these projections `hasSpouse = false`, so `isSurvivor` never triggers and survivor % is irrelevant. However, see PlannerContext Step 3 above: the spouse-solo projection must override `pension` with `spousePension` so the chart's spouse line reflects the spouse's actual pension, not the primary's.
 
 4. **`primaryDiesFirst` uses life expectancy inputs, not probability.** When both spouses have the same life expectancy, `primaryDiesFirst = true` (≤ condition). This is an arbitrary but consistent tiebreak.
 
