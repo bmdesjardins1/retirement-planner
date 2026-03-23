@@ -56,6 +56,9 @@ export default function ResultsStep() {
   );
   const firstIrmaaYear = medicareYears.find(d => d.irmaa > 0);
 
+  // Home sale: find the year proceeds were injected
+  const homeSaleYear = results.yearsData.find(d => d.homeSaleProceeds > 0);
+
   // Monte Carlo: run 500 simulations varying annual return (±10% std dev)
   // Only the combined projection gets the band — it's the primary planning view.
   const effectiveLifeExpectancy = hasSpouse
@@ -353,6 +356,19 @@ export default function ResultsStep() {
             </div>
           </div>
         ))}
+
+        {homeSaleYear && (
+          <div className="metric-box metric-box--green mt-20" style={{ gridColumn: "1 / -1" }}>
+            <div className="metric-box-label">Home Sale</div>
+            <div className="metric-box-value value--green">
+              +${homeSaleYear.homeSaleProceeds.toLocaleString()}
+            </div>
+            <div className="metric-box-note">
+              At age {homeSaleYear.age} — net proceeds after fees added to your portfolio.
+              Your taxable investments will grow from this injection onward.
+            </div>
+          </div>
+        )}
 
         <p className="disclaimer">
           ⚠ This tool provides estimates for planning purposes only and is not financial advice. Consult a certified financial planner (CFP) for personalized guidance. Tax rates, Social Security rules, and cost of living figures are approximate and subject to change.
