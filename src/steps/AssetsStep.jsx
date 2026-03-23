@@ -206,7 +206,7 @@ export default function AssetsStep() {
           <>
             <SliderInput
               label="Remaining Mortgage Balance"
-              value={mortgageBalance} min={0} max={1500000} step={5000}
+              value={mortgageBalance} min={0} max={homeValue} step={5000}
               onChange={setMortgageBalance} prefix="$"
               note="What you still owe on your mortgage today. If it's paid off (or nearly so), enter $0."
             />
