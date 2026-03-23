@@ -38,10 +38,14 @@ export default function AssetsStep() {
     spouseAnnualContribOther, setSpouseAnnualContribOther,
     homeValue, setHomeValue,
     homeOwned, setHomeOwned,
+    mortgageBalance, setMortgageBalance,
+    homeSaleIntent, setHomeSaleIntent,
+    homeSaleAge, setHomeSaleAge,
     investmentReturn, setInvestmentReturn,
     inflation, setInflation,
     healthcareInflation, setHealthcareInflation,
     retirementAge, spouseRetirementAge,
+    lifeExpectancy,
     hasSpouse,
     stateInfo, state, results, primaryResults, spouseResults,
   } = usePlanner();
@@ -197,6 +201,43 @@ export default function AssetsStep() {
               note="Medical costs rise faster than general inflation — historically ~5-7%/yr. This is applied separately to your healthcare spending." />
           </div>
         </div>
+
+        {homeOwned && (
+          <>
+            <SliderInput
+              label="Remaining Mortgage Balance"
+              value={mortgageBalance} min={0} max={1500000} step={5000}
+              onChange={setMortgageBalance} prefix="$"
+              note="What you still owe on your mortgage today. If it's paid off (or nearly so), enter $0."
+            />
+            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: -12, marginBottom: 16 }}>
+              Estimated Equity: <strong style={{ color: "#e2e8f0" }}>${Math.max(0, homeValue - mortgageBalance).toLocaleString()}</strong>
+            </div>
+
+            <div className="mb-20">
+              <label className="field-label">What do you plan to do with this home?</label>
+              <div className="toggle-group">
+                <button
+                  className={`toggle${homeSaleIntent === "sell" ? " toggle--active" : ""}`}
+                  onClick={() => setHomeSaleIntent("sell")}
+                >Sell &amp; Invest Proceeds</button>
+                <button
+                  className={`toggle${homeSaleIntent === "keep" ? " toggle--active" : ""}`}
+                  onClick={() => setHomeSaleIntent("keep")}
+                >Keep / Leave to Heirs</button>
+              </div>
+            </div>
+
+            {homeSaleIntent === "sell" && (
+              <SliderInput
+                label="Planned Sale Age"
+                value={homeSaleAge} min={retirementAge} max={lifeExpectancy} step={1}
+                onChange={setHomeSaleAge} suffix=" yrs"
+                note={`We'll add ~$${Math.round(Math.max(0, homeValue - mortgageBalance) * 0.95).toLocaleString()} to your portfolio at age ${homeSaleAge} (after realtor fees and closing costs).`}
+              />
+            )}
+          </>
+        )}
       </Card>
 
       {/* Summary — preserved verbatim */}
