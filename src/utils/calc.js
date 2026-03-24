@@ -73,7 +73,6 @@ export function runProjection(inputs) {
   // Pre-Medicare bridge: higher healthcare cost before age 65 (marketplace/COBRA).
   // lastMedicareAge is the primary age when the last person in the household hits 65.
   // For couples: if primary is 60 and spouse is 58, spouse hits 65 when primary is 67.
-  const baseBridgeHealthcareNeed = bridgeHealthcare > 0 ? bridgeHealthcare * col : baseHealthcareNeed;
   const lastMedicareAge = hasSpouse
     ? Math.max(65, currentAge + (65 - spouseAge))
     : 65;
@@ -279,7 +278,7 @@ export function runProjection(inputs) {
     // Switch to standard Medicare healthcare cost once both people are covered
     const inBridgePhase = hasBridge && ageInYear < lastMedicareAge;
     const activeBaseHealthcareNeed = inBridgePhase
-      ? (bridgeHealthcare > 0 ? bridgeHealthcare * activeCol : healthcare * activeCol)
+      ? bridgeHealthcare * activeCol
       : healthcare * activeCol;
 
     // ── IRMAA: Medicare premium surcharge at age 65+ ─────────────────────────
