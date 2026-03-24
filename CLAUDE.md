@@ -26,8 +26,9 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - Home equity as asset (PR #7, 2026-03-22)
 - Roth conversion window callout (PR #8, 2026-03-23) — yellow metric box in Tax & Cost Summary
 - Pension survivor benefit modeling (PR #9, 2026-03-23) — survivor % selectors for both pensions, spouse pension input, corrected drawdown loop
+- calc.js model accuracy audit (PR #10, 2026-03-24) — MAGI fix, dead code removal, simplification comments
 
-**Resume point:** calc.js model accuracy audit + code quality cleanup (brainstorming started, no spec written yet). After that: site design cleanup.
+**Resume point:** Site design cleanup — brainstorm not started yet. Invoke `superpowers:brainstorming` to kick it off.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
