@@ -16,15 +16,18 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `docs/superpowers/plans/` — implementation plans
 
 ## Active Work
-**Status:** Phase 2 in progress. 4 features shipped to main.
+**Status:** Phase 2 in progress. 9 features shipped to main.
 
-**Completed this session:**
+**Completed:**
 - SS claiming age (62–70 slider, SSA formula, survivor benefit transition in combined projection)
 - Input validation (constrained setters — age/retirement/lifeExpectancy ordering enforced)
 - Withdrawal rate display (verdict banner, color-coded, 4% rule benchmark)
 - Pre-65 healthcare bridge (separate cost before Medicare; `lastMedicareAge` handles couples)
+- Home equity as asset (PR #7, 2026-03-22)
+- Roth conversion window callout (PR #8, 2026-03-23) — yellow metric box in Tax & Cost Summary
+- Pension survivor benefit modeling (PR #9, 2026-03-23) — survivor % selectors for both pensions, spouse pension input, corrected drawdown loop
 
-**Resume point:** Next up is #5 — Monte Carlo simulation (confidence band: best/median/worst).
+**Resume point:** calc.js model accuracy audit + code quality cleanup (brainstorming started, no spec written yet). After that: site design cleanup.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
