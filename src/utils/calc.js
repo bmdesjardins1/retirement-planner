@@ -105,8 +105,8 @@ export function runProjection(inputs) {
 
   // Non-SS ordinary income — used for federal tax in real terms.
   // Pension is always its year-0 value in real terms (whether or not it has COLA).
-  const nonSSWithPT    = pension + partTimeIncome + rentalIncome;
-  const nonSSWithoutPT = pension + rentalIncome;
+  const nonSSWithPT    = pension + spousePension + partTimeIncome + rentalIncome;
+  const nonSSWithoutPT = pension + spousePension + rentalIncome;
 
   // Retirement state income variants (post-move, non-survivor — ssMonthlyAlone not yet defined)
   const retSSTaxableMonthly       = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
