@@ -73,7 +73,6 @@ export function runProjection(inputs) {
   // Pre-Medicare bridge: higher healthcare cost before age 65 (marketplace/COBRA).
   // lastMedicareAge is the primary age when the last person in the household hits 65.
   // For couples: if primary is 60 and spouse is 58, spouse hits 65 when primary is 67.
-  const baseBridgeHealthcareNeed = bridgeHealthcare > 0 ? bridgeHealthcare * col : baseHealthcareNeed;
   const lastMedicareAge = hasSpouse
     ? Math.max(65, currentAge + (65 - spouseAge))
     : 65;
@@ -105,8 +104,8 @@ export function runProjection(inputs) {
 
   // Non-SS ordinary income — used for federal tax in real terms.
   // Pension is always its year-0 value in real terms (whether or not it has COLA).
-  const nonSSWithPT    = pension + partTimeIncome + rentalIncome;
-  const nonSSWithoutPT = pension + rentalIncome;
+  const nonSSWithPT    = pension + spousePension + partTimeIncome + rentalIncome;
+  const nonSSWithoutPT = pension + spousePension + rentalIncome;
 
   // Retirement state income variants (post-move, non-survivor — ssMonthlyAlone not yet defined)
   const retSSTaxableMonthly       = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
@@ -232,6 +231,10 @@ export function runProjection(inputs) {
     // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
     // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
     const realSS       = ssMonthly * 12;
+    // Not adjusted for survivor phase — pension and rental income don't necessarily
+    // halve after one spouse's death. The overstatement of income and the overstatement
+    // of taxes roughly cancel; accepted simplification. activeRealSS does correctly
+    // drop to ssMonthlyAlone*12 in survivor mode.
     const realOrdinary = (ptEnded ? nonSSWithoutPT : nonSSWithPT) * 12;
 
     // Switch to survivor mode after the first spouse's death
@@ -274,12 +277,18 @@ export function runProjection(inputs) {
 
     // Mortgage payoff: housing drops to $0 for owners after payoff age
     const housePaid = housingType === "own" && ageInYear >= mortgagePayoffAge;
+    // Simplification: housing drops to $0 after payoff. Ongoing maintenance and homeowner's
+    // insurance (~1–2% of home value/yr) are not modeled — users should include these in
+    // their 'Other' spending category. Slightly non-conservative but acceptable.
     const effectiveHousingNeed = housePaid ? 0 : activeBaseHousingNeed;
 
     // Switch to standard Medicare healthcare cost once both people are covered
     const inBridgePhase = hasBridge && ageInYear < lastMedicareAge;
+    // Conservative simplification: not scaled by activeSurvFactor — household healthcare stays
+    // at the full entered amount after one spouse dies. Per-person Medicare costs don't drop
+    // much when a spouse dies (premiums are per-person), so this overstatement is intentional.
     const activeBaseHealthcareNeed = inBridgePhase
-      ? (bridgeHealthcare > 0 ? bridgeHealthcare * activeCol : healthcare * activeCol)
+      ? bridgeHealthcare * activeCol
       : healthcare * activeCol;
 
     // ── IRMAA: Medicare premium surcharge at age 65+ ─────────────────────────
@@ -329,12 +338,12 @@ export function runProjection(inputs) {
 
     // Home sale proceeds: inject into taxableBucket at the sale year.
     // taxableBucket is the right destination — proceeds go into a taxable brokerage
-    // account in practice. The 60%-gains assumption applies on withdrawal (a minor
-    // overstatement since actual home sale proceeds are tax-free principal after
-    // the primary residence exclusion, but acceptable for a planning tool).
+    // account in practice.
+    // Conservative: the 60%-gains assumption overstates the tax on home sale proceeds.
+    // In reality, the $250K/$500K primary residence exclusion eliminates gains tax for
+    // most users. Treating it as taxable is a modest conservative overstatement.
     // Net proceeds = 95% of equity after realtor fees + closing costs.
-    // Both mortgageBalance and homeValue are today's values — mortgage paydown
-    // and home appreciation before the sale date are not modeled.
+    // Note: mortgage paydown and home appreciation before the sale date are not modeled.
     let homeSaleProceeds = 0;
     if (homeOwned && homeSaleIntent === "sell" && ageInYear === homeSaleAge) {
       homeSaleProceeds = Math.max(0, homeValue - mortgageBalance) * 0.95;
