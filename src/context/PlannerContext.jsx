@@ -26,6 +26,10 @@ export function PlannerProvider({ children }) {
   const [ss2ClaimAge, setSs2ClaimAge]         = useState(67);
   const [pension, setPension]                 = useState(0);
   const [pensionCOLA, setPensionCOLA]         = useState(false);
+  const [pensionSurvivorPct, setPensionSurvivorPct]           = useState(100);
+  const [spousePension, setSpousePension]                     = useState(0);
+  const [spousePensionCOLA, setSpousePensionCOLA]             = useState(false);
+  const [spousePensionSurvivorPct, setSpousePensionSurvivorPct] = useState(100);
   const [partTimeIncome, setPartTimeIncome]   = useState(0);
   const [partTimeEndAge, setPartTimeEndAge]   = useState(70);
   const [rentalIncome, setRentalIncome]       = useState(0);
@@ -143,7 +147,9 @@ export function PlannerProvider({ children }) {
 
   // Shared inputs passed to every projection
   const sharedInputs = {
-    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    pension, pensionCOLA, pensionSurvivorPct,
+    spousePension, spousePensionCOLA, spousePensionSurvivorPct,
+    partTimeIncome, partTimeEndAge, rentalIncome,
     homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge, investmentReturn, inflation, healthcareInflation,
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
@@ -182,7 +188,9 @@ export function PlannerProvider({ children }) {
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
-    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    pension, pensionCOLA, pensionSurvivorPct,
+    spousePension, spousePensionCOLA, spousePensionSurvivorPct,
+    partTimeIncome, partTimeEndAge, rentalIncome,
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
@@ -205,13 +213,16 @@ export function PlannerProvider({ children }) {
     spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
     survivorFactor: 0.6,
     ...sharedInputs,
+    spousePension: 0,   // prevent spouse pension leaking into primary-solo summary cards
   }), [
     age, retirementAge, lifeExpectancy,
     ss1, ss1ClaimAge,
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
-    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    pension, pensionCOLA, pensionSurvivorPct,
+    spousePension, spousePensionCOLA, spousePensionSurvivorPct,
+    partTimeIncome, partTimeEndAge, rentalIncome,
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
@@ -235,13 +246,18 @@ export function PlannerProvider({ children }) {
     spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
     survivorFactor: 0.6,
     ...sharedInputs,
+    pension: spousePension,           // spouse's own pension, not primary's
+    pensionCOLA: spousePensionCOLA,   // spouse's own COLA flag
+    spousePension: 0,                 // prevent double-counting (pension above = spousePension)
   }) : null, [
     hasSpouse, spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     ss2, ss2ClaimAge,
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
-    pension, pensionCOLA, partTimeIncome, partTimeEndAge, rentalIncome,
+    pension, pensionCOLA, pensionSurvivorPct,
+    spousePension, spousePensionCOLA, spousePensionSurvivorPct,
+    partTimeIncome, partTimeEndAge, rentalIncome,
     housingType, housing, mortgagePayoffAge,
     food, healthcare, bridgeHealthcare, transport, leisure, other,
     longTermCare, ltcStartAge,
@@ -285,6 +301,10 @@ export function PlannerProvider({ children }) {
       adjustedSS1, adjustedSS2,
       pension, setPension,
       pensionCOLA, setPensionCOLA,
+      pensionSurvivorPct, setPensionSurvivorPct,
+      spousePension, setSpousePension,
+      spousePensionCOLA, setSpousePensionCOLA,
+      spousePensionSurvivorPct, setSpousePensionSurvivorPct,
       partTimeIncome, setPartTimeIncome,
       partTimeEndAge, setPartTimeEndAge,
       rentalIncome, setRentalIncome,

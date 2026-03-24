@@ -38,7 +38,9 @@ export function runProjection(inputs) {
   const {
     age: currentAge, retirementAge, lifeExpectancy, hasSpouse,
     spouseAge = 0, spouseRetirementAge = 65, spouseLifeExpectancy = lifeExpectancy,
-    ss1, ss2, pension, pensionCOLA = false, partTimeIncome, partTimeEndAge, rentalIncome,
+    ss1, ss2, pension, pensionCOLA = false,
+    pensionSurvivorPct = 100, spousePension = 0, spousePensionCOLA = false, spousePensionSurvivorPct = 100,
+    partTimeIncome, partTimeEndAge, rentalIncome,
     annualContrib401k, employerMatch = 0, annualContribIRA, annualContribOther,
     spouseAnnualContrib401k = 0, spouseEmployerMatch = 0,
     spouseAnnualContribIRA = 0, spouseAnnualContribOther = 0,
@@ -112,9 +114,13 @@ export function runProjection(inputs) {
   const retNonPensionNetWithoutPT = (ssMonthly + rentalIncome) - (rentalIncome + retSSTaxableMonthly) * retirementStateInfo.incomeTax;
   const retPensionNetMonthly      = pension - pension * retirementStateInfo.incomeTax;
 
+  const spousePensionStateTax      = spousePension * stateInfo.incomeTax;
+  const spousePensionNetMonthly    = spousePension - spousePensionStateTax;
+  const retSpousePensionNetMonthly = spousePension - spousePension * retirementStateInfo.incomeTax;
+
   // For summary cards (year-0, with part-time)
-  const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly;
-  const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax;
+  const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly + spousePensionNetMonthly;
+  const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax   + spousePensionStateTax;
 
   const adjustedExpenses = (baseHousingNeed + baseNonHousingNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
@@ -175,6 +181,11 @@ export function runProjection(inputs) {
   const firstDeathAge = modelSurvivor
     ? Math.min(lifeExpectancy, currentAge + (spouseLifeExpectancy - spouseAge))
     : Infinity;
+
+  // primaryDiesFirst: true when primary's life expectancy ≤ spouse's (converted to primary age scale).
+  // Determines which pension amount gets the survivor % reduction in the drawdown loop.
+  const primaryDiesFirst = !hasSpouse ? false
+    : lifeExpectancy <= currentAge + (spouseLifeExpectancy - spouseAge);
 
   // Survivor-phase expense and income bases (housing split for payoff logic)
   const baseHousingNeedAlone    = housing * col * 0.6;
@@ -248,7 +259,15 @@ export function runProjection(inputs) {
     const activeNonPensionNetWithoutPT = isSurvivor
       ? (hasMoved ? retNonPensionNetWithoutPTAlone : nonPensionNetWithoutPTAlone)
       : (hasMoved ? retNonPensionNetWithoutPT      : nonPensionNetWithoutPT);
-    const activePensionNetMonthly      = hasMoved ? retPensionNetMonthly : pensionNetMonthly;
+    // Primary pension: reduced by survivorPct when primary has died (isSurvivor && primaryDiesFirst)
+    const activePrimaryPensionNet = (isSurvivor && primaryDiesFirst)
+      ? (hasMoved ? retPensionNetMonthly : pensionNetMonthly) * (pensionSurvivorPct / 100)
+      : (hasMoved ? retPensionNetMonthly : pensionNetMonthly);
+    // Spouse pension: reduced by survivorPct when spouse has died (isSurvivor && !primaryDiesFirst)
+    const activeSpousePensionNet = !hasSpouse ? 0
+      : (isSurvivor && !primaryDiesFirst)
+      ? (hasMoved ? retSpousePensionNetMonthly : spousePensionNetMonthly) * (spousePensionSurvivorPct / 100)
+      : (hasMoved ? retSpousePensionNetMonthly : spousePensionNetMonthly);
     const activeRealSS                 = isSurvivor ? ssMonthlyAlone * 12 : realSS;
     const activeMarried                = isSurvivor ? false               : hasSpouse;
     const activeStateTaxRate           = hasMoved ? retirementStateInfo.incomeTax : stateInfo.incomeTax;
@@ -292,9 +311,10 @@ export function runProjection(inputs) {
       yearlyLTC +
       irmaaAnnual;
     const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
-    const pensionContrib = pensionCOLA
-      ? activePensionNetMonthly * 12 * generalFactor   // COLA: inflates with general inflation
-      : activePensionNetMonthly * 12;                  // Fixed: stays flat in nominal dollars
+    // Each pension's COLA applies independently
+    const pensionContrib =
+      (pensionCOLA      ? activePrimaryPensionNet * 12 * generalFactor : activePrimaryPensionNet * 12) +
+      (spousePensionCOLA ? activeSpousePensionNet  * 12 * generalFactor : activeSpousePensionNet  * 12);
     const yearlyIncome = (baseNonPensionNet * 12 * generalFactor) + pensionContrib;
 
     // Estimate portfolio withdrawal needed before accounting for federal tax
