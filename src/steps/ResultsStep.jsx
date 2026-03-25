@@ -20,6 +20,7 @@ export default function ResultsStep() {
     investmentReturn,
     trad401k, tradIRA, hasTrad401k, hasTradIRA,
     spouseTrad401k, spouseTradIRA, spouseHasTrad401k, spouseHasTradIRA,
+    planningToMove, moveAge, retirementState, retirementStateInfo,
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
@@ -373,6 +374,15 @@ export default function ResultsStep() {
           <div className="metric-box metric-box--green">
             <div className="metric-box-label">{state} State Tax /mo</div>
             <div className="metric-box-value value--red">−${results.stateTaxMonthly.toLocaleString()}</div>
+            {planningToMove && (
+              <div className="metric-box-note" style={{ marginTop: 8 }}>
+                After your planned move to {retirementState} at age {moveAge}:{" "}
+                state income tax changes to {(retirementStateInfo.incomeTax * 100).toFixed(1)}%
+                {retirementStateInfo.hasSSIncomeTax
+                  ? " (SS benefits are taxed in that state)"
+                  : " (SS benefits are not taxed in that state)"}.
+              </div>
+            )}
           </div>
           <div className="metric-box metric-box--purple">
             <div className="metric-box-label">Property Tax /mo</div>
