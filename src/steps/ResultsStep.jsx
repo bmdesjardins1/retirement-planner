@@ -96,7 +96,7 @@ export default function ResultsStep() {
     ? Math.min(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
     : null;
 
-  const { successRate, bands } = useMemo(() => runMonteCarlo({
+  const { successRate } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
     portfolioAtRetirement: results.portfolioAtRetirement,
     investmentReturn,
