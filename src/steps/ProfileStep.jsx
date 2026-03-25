@@ -1,6 +1,6 @@
 import { STATE_DATA } from "../data/stateData";
 import { usePlanner } from "../context/PlannerContext";
-import SliderInput from "../components/SliderInput";
+import FieldInput from "../components/FieldInput";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
 
@@ -26,14 +26,14 @@ export default function ProfileStep() {
 
       <div className="grid-2 mb-28">
         <Card>
-          <SliderInput label="Your Current Age" value={age} min={18} max={80} step={1} onChange={setAge} suffix=" yrs" />
-          <SliderInput
+          <FieldInput label="Your Current Age" value={age} min={18} max={80} step={1} onChange={setAge} suffix=" yrs" />
+          <FieldInput
             label="Planned Retirement Age"
             value={retirementAge} min={age} max={80} step={1}
             onChange={setRetirementAge} suffix=" yrs"
-            note="Age at which you plan to stop working full-time."
+            tooltip="Age at which you plan to stop working full-time."
           />
-          <SliderInput
+          <FieldInput
             label="Life Expectancy"
             value={lifeExpectancy} min={Math.max(75, retirementAge + 1)} max={100} step={1}
             onChange={setLifeExpectancy} suffix=" yrs"
@@ -50,18 +50,18 @@ export default function ProfileStep() {
             </div>
           </div>
           {hasSpouse && (
-            <SliderInput label="Spouse / Partner Age" value={spouseAge} min={18} max={80} step={1} onChange={setSpouseAge} suffix=" yrs" />
+            <FieldInput label="Spouse / Partner Age" value={spouseAge} min={18} max={80} step={1} onChange={setSpouseAge} suffix=" yrs" />
           )}
           {hasSpouse && (
-            <SliderInput
+            <FieldInput
               label="Spouse Planned Retirement Age"
               value={spouseRetirementAge} min={spouseAge} max={80} step={1}
               onChange={setSpouseRetirementAge} suffix=" yrs"
-              note="Age at which your spouse plans to stop working full-time."
+              tooltip="Age at which your spouse plans to stop working full-time."
             />
           )}
           {hasSpouse && (
-            <SliderInput
+            <FieldInput
               label="Spouse Life Expectancy"
               value={spouseLifeExpectancy} min={Math.max(75, spouseRetirementAge + 1)} max={100} step={1}
               onChange={setSpouseLifeExpectancy} suffix=" yrs"
@@ -116,11 +116,11 @@ export default function ProfileStep() {
         {planningToMove && (
           <>
             <div className="grid-2 mb-16">
-              <SliderInput
+              <FieldInput
                 label="Planned Move Age"
                 value={moveAge} min={age} max={lifeExpectancy} step={1}
                 onChange={setMoveAge} suffix=" yrs"
-                note="The year you move, your cost of living, taxes, and property tax all switch to the new state."
+                tooltip="The year you move, your cost of living, taxes, and property tax all switch to the new state."
               />
               <div>
                 <label className="field-label">Retirement State</label>
