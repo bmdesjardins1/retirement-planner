@@ -115,29 +115,18 @@ export default function ResultsStep() {
     primaryResults.yearsData.length,
     spouseResults?.yearsData.length ?? 0,
   );
-  // Build a lookup from age → MC band so we can merge into chartData by index
-  const bandByAge = Object.fromEntries(bands.map(b => [b.age, b]));
-
   const chartData = Array.from({ length: maxLen }, (_, i) => {
     const base = results.yearsData[i];
     const lastAge = results.yearsData[results.yearsData.length - 1].age;
     const chartAge = base ? base.age : lastAge + (i - results.yearsData.length + 1);
-    const band = bandByAge[chartAge];
     return {
       age: chartAge,
       combined: results.yearsData[i]?.portfolio ?? 0,
       primary: primaryResults.yearsData[i]?.portfolio ?? 0,
       spouse: spouseResults?.yearsData[i]?.portfolio ?? 0,
-      // MC band: p10 is the floor, bandWidth stacks on top to reach p90.
-      // Rendered with stackId="mc" so Recharts fills the area between them.
-      mcFloor: band?.p10 ?? null,
-      mcBand:  band ? Math.max(band.p90 - band.p10, 0) : null,
     };
   });
-  const chartCutoffAge = hasSpouse
-    ? Math.max(lifeExpectancy, spouseLifeExpOnPrimaryAxis) + 5
-    : lifeExpectancy + 5;
-  const visibleChartData = chartData.filter(d => d.age <= chartCutoffAge);
+  const visibleChartData = chartData.filter(d => d.age <= effectiveLifeExpectancy);
 
   return (
     <div>
@@ -260,8 +249,6 @@ export default function ResultsStep() {
               labelFormatter={v => `Age ${v}`}
               formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
             />
-            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
-
             <ReferenceLine
               x={retirementAge}
               stroke="#818cf8" strokeDasharray="4 4"
@@ -286,21 +273,9 @@ export default function ResultsStep() {
                 label={{ value: "Spouse Life Exp.", fill: "#fb923c", fontSize: 10, position: "insideTopLeft" }}
               />
             )}
-
-            {/* MC confidence band: mcFloor (transparent base) + mcBand (width) stack to fill p10→p90 */}
-            <Area type="monotone" dataKey="mcFloor" stackId="mc" stroke="none" fill="transparent" dot={false} legendType="none" connectNulls={false} />
-            <Area type="monotone" dataKey="mcBand"  stackId="mc" stroke="none" fill="rgba(52,211,153,0.12)" dot={false} name="Market range (10th–90th %ile)" connectNulls={false} />
-
             <Area type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} fill="url(#portGrad)" dot={false} name="Combined" />
-            <Area type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="You" />
-            {hasSpouse && <Area type="monotone" dataKey="spouse" stroke="#60a5fa" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="Spouse" />}
           </AreaChart>
         </ResponsiveContainer>
-        {hasSpouse && (
-          <p className="disclaimer" style={{ marginTop: 8, marginBottom: 0 }}>
-            Individual trajectories (You / Spouse) use 60% of household expenses — the standard survivor planning assumption. Combined uses 100%.
-          </p>
-        )}
       </Card>
 
       {/* Income vs Expenses Chart */}
