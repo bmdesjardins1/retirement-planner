@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar,
+  AreaChart, Area, LineChart, Line, BarChart, Bar, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import { usePlanner } from "../context/PlannerContext";
@@ -24,6 +24,9 @@ export default function ResultsStep() {
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
+  const STD_DEV_MAP = { low: 5, medium: 10, high: 17 };
+  const [stdDevSetting, setStdDevSetting] = useState("medium");
+  const mcSectionRef = useRef(null);
 
   // Withdrawal rate: annual gap drawn from portfolio at retirement
   // Shows 0 if there's a surplus (no portfolio draw needed)
@@ -99,13 +102,22 @@ export default function ResultsStep() {
     ? firstDeathAge
     : null;
 
-  const { successRate } = useMemo(() => runMonteCarlo({
+  const { successRate, bands, medianFailureAge, p10DepletionAge } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
     portfolioAtRetirement: results.portfolioAtRetirement,
     investmentReturn,
     retirementAge,
     effectiveLifeExpectancy,
-  }), [results.yearsData, results.portfolioAtRetirement, investmentReturn, retirementAge, effectiveLifeExpectancy]);
+    stdDev: STD_DEV_MAP[stdDevSetting],
+  }), [results.yearsData, results.portfolioAtRetirement, investmentReturn, retirementAge, effectiveLifeExpectancy, stdDevSetting]);
+
+  const bandChartData = bands.map(b => ({
+    age: b.age,
+    p10: b.p10,
+    bandWidth: Math.max(0, b.p90 - b.p10),
+    p50: b.p50,
+    p90: b.p90,
+  }));
 
   const successRateColor =
     successRate >= 90 ? "value--green"  :
@@ -165,16 +177,20 @@ export default function ResultsStep() {
             ≤4% considered safe
           </div>
         </div>
-        <div className="verdict-runway" style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}>
+        <button
+          className="verdict-runway verdict-runway-btn"
+          style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}
+          onClick={() => mcSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        >
           <div className="verdict-runway-label">Success Rate</div>
           <div className={`verdict-runway-num ${successRateColor}`}>
             {successRate}%
           </div>
-          <div className="verdict-runway-unit">of 500 simulations</div>
+          <div className="verdict-runway-unit">of 1,000 simulations</div>
           <div className="verdict-runway-unit" style={{ marginTop: 4, fontSize: 9, opacity: 0.6 }}>
             portfolio survives to life exp.
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Gap Analysis */}
