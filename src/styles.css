@@ -710,3 +710,55 @@ body {
   margin-bottom: 0;
   line-height: 1.6;
 }
+
+/* Gap analysis section */
+.gap-analysis {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 28px;
+}
+.gap-analysis-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
+  margin: 0 0 20px;
+}
+.gap-analysis-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+}
+.gap-analysis-row:last-child {
+  border-bottom: none;
+}
+.gap-analysis-row--total {
+  border-top: 2px solid rgba(51, 65, 85, 0.6);
+  border-bottom: none;
+  padding-top: 14px;
+  margin-top: 4px;
+}
+.gap-analysis-label {
+  font-size: 13px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gap-analysis-value {
+  font-size: 22px;
+  font-family: "DM Mono", monospace;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+.gap-analysis-rate {
+  font-size: 13px;
+  color: #64748b;
+  text-align: right;
+  margin-top: 4px;
+}
