@@ -95,6 +95,9 @@ export default function ResultsStep() {
   const firstDeathAge = hasSpouse
     ? Math.min(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
     : null;
+  const firstDeathAgeOnGrid = (firstDeathAge !== null && (firstDeathAge - retirementAge) % 5 === 0)
+    ? firstDeathAge
+    : null;
 
   const { successRate } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
@@ -346,9 +349,9 @@ export default function ResultsStep() {
               formatter={v => `$${v.toLocaleString()}`}
             />
             <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
-            {firstDeathAge && (
+            {firstDeathAgeOnGrid && (
               <ReferenceLine
-                x={firstDeathAge}
+                x={firstDeathAgeOnGrid}
                 stroke="#94a3b8" strokeDasharray="4 4"
                 label={{ value: "Survivor phase", fill: "#94a3b8", fontSize: 10, position: "insideTopRight" }}
               />
