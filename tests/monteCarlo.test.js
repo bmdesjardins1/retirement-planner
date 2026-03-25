@@ -69,4 +69,51 @@ describe("runMonteCarlo", () => {
     expect(successRate).toBe(100);
     expect(bands).toHaveLength(0);
   });
+
+  it("medianFailureAge is null when all simulations succeed", () => {
+    const yearsData = makeYearsData(65, 10, 1_000);
+    const { medianFailureAge } = runMonteCarlo({
+      ...base,
+      portfolioAtRetirement: 10_000_000,
+      yearsData,
+    });
+    expect(medianFailureAge).toBeNull();
+  });
+
+  it("medianFailureAge is a number within the drawdown age range when failures occur", () => {
+    const yearsData = makeYearsData(65, 20, 300_000);
+    const { medianFailureAge } = runMonteCarlo({
+      ...base,
+      portfolioAtRetirement: 200_000,
+      yearsData,
+    });
+    expect(medianFailureAge).not.toBeNull();
+    expect(medianFailureAge).toBeGreaterThanOrEqual(65);
+    expect(medianFailureAge).toBeLessThanOrEqual(84); // 65 + 20 - 1
+  });
+
+  it("p10DepletionAge is null when p10 never hits $0", () => {
+    const yearsData = makeYearsData(65, 10, 1_000);
+    const { p10DepletionAge } = runMonteCarlo({
+      ...base,
+      portfolioAtRetirement: 10_000_000,
+      yearsData,
+    });
+    expect(p10DepletionAge).toBeNull();
+  });
+
+  it("p10DepletionAge equals the first band age where p10 === 0 exactly", () => {
+    const yearsData = makeYearsData(65, 25, 150_000);
+    const { bands, p10DepletionAge } = runMonteCarlo({
+      ...base,
+      portfolioAtRetirement: 400_000,
+      yearsData,
+    });
+    const firstZeroBand = bands.find(b => b.p10 === 0);
+    if (firstZeroBand) {
+      expect(p10DepletionAge).toBe(firstZeroBand.age);
+    } else {
+      expect(p10DepletionAge).toBeNull();
+    }
+  });
 });
