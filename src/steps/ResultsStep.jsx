@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import { usePlanner } from "../context/PlannerContext";
@@ -277,6 +277,40 @@ export default function ResultsStep() {
           </AreaChart>
         </ResponsiveContainer>
       </Card>
+
+      {/* Scenario Comparison Chart — couples only */}
+      {hasSpouse && (
+        <Card className="mb-28">
+          <h3 className="chart-heading">Scenario Comparison: You vs. Spouse vs. Combined</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={visibleChartData} margin={{ top: 4, right: 8, bottom: 40, left: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
+              <XAxis
+                dataKey="age"
+                tick={{ fill: "#475569", fontSize: 11 }}
+                label={{ value: "Age", position: "insideBottom", offset: -12, fill: "#475569", fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fill: "#475569", fontSize: 11 }}
+                tickFormatter={v => v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`}
+                width={64}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={v => `Age ${v}`}
+                formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
+              />
+              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+              <Line type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} dot={false} name="Combined" />
+              <Line type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="You" />
+              <Line type="monotone" dataKey="spouse"   stroke="#60a5fa" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="Spouse" />
+            </LineChart>
+          </ResponsiveContainer>
+          <p className="disclaimer" style={{ marginTop: 8, marginBottom: 0 }}>
+            Individual trajectories (You / Spouse) use 60% of household expenses — the standard survivor planning assumption. Combined uses 100%.
+          </p>
+        </Card>
+      )}
 
       {/* Income vs Expenses Chart */}
       <Card className="mb-28">
