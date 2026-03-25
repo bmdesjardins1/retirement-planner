@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { usePlanner } from "../context/PlannerContext";
-import SliderInput from "../components/SliderInput";
+import FieldInput from "../components/FieldInput";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
 import AccountTypeBlock from "../components/AccountTypeBlock";
@@ -111,14 +111,14 @@ export default function AssetsStep() {
               max={1000000} step={5000}
               balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
             />
-            <SliderInput label="Annual 401(k) Contribution" value={annualContrib401k} min={0} max={30000} step={500} onChange={setAnnualContrib401k} prefix="$" suffix="/yr"
+            <FieldInput label="Annual 401(k) Contribution" value={annualContrib401k} min={0} max={30000} step={500} onChange={setAnnualContrib401k} prefix="$" suffix="/yr"
               note="2024 limit: $23,000 ($30,500 if age 50+)." />
-            <SliderInput label="Employer Contributions / yr" value={employerMatch} min={0} max={15000} step={500} onChange={setEmployerMatch} prefix="$" suffix="/yr"
+            <FieldInput label="Employer Contributions / yr" value={employerMatch} min={0} max={15000} step={500} onChange={setEmployerMatch} prefix="$" suffix="/yr"
               note="Total your employer contributes to your retirement accounts each year. Check your HR portal or most recent pay stub." />
-            <SliderInput label="Annual IRA Contribution" value={annualContribIRA} min={0} max={8000} step={500} onChange={setAnnualContribIRA} prefix="$" suffix="/yr"
+            <FieldInput label="Annual IRA Contribution" value={annualContribIRA} min={0} max={8000} step={500} onChange={setAnnualContribIRA} prefix="$" suffix="/yr"
               note="2024 limit: $7,000 ($8,000 if age 50+). Includes Roth IRA." />
-            <SliderInput label="Annual Other Savings" value={annualContribOther} min={0} max={100000} step={1000} onChange={setAnnualContribOther} prefix="$" suffix="/yr"
-              note="Additional savings to brokerage accounts, savings accounts, or other investments." />
+            <FieldInput label="Annual Other Savings" value={annualContribOther} min={0} max={100000} step={1000} onChange={setAnnualContribOther} prefix="$" suffix="/yr"
+              tooltip="Additional savings to brokerage accounts, savings accounts, or other investments." />
           </>
         )}
 
@@ -160,14 +160,14 @@ export default function AssetsStep() {
               max={1000000} step={5000}
               balanceNote="We assume 60% of withdrawals are taxable gains — a conservative estimate for a long-held account."
             />
-            <SliderInput label="Annual Spouse 401(k) Contribution" value={spouseAnnualContrib401k} min={0} max={30000} step={500} onChange={setSpouseAnnualContrib401k} prefix="$" suffix="/yr"
+            <FieldInput label="Annual Spouse 401(k) Contribution" value={spouseAnnualContrib401k} min={0} max={30000} step={500} onChange={setSpouseAnnualContrib401k} prefix="$" suffix="/yr"
               note="2024 limit: $23,000 ($30,500 if age 50+)." />
-            <SliderInput label="Spouse Employer Contributions / yr" value={spouseEmployerMatch} min={0} max={15000} step={500} onChange={setSpouseEmployerMatch} prefix="$" suffix="/yr"
+            <FieldInput label="Spouse Employer Contributions / yr" value={spouseEmployerMatch} min={0} max={15000} step={500} onChange={setSpouseEmployerMatch} prefix="$" suffix="/yr"
               note="Total your spouse's employer contributes annually to their retirement accounts." />
-            <SliderInput label="Annual Spouse IRA Contribution" value={spouseAnnualContribIRA} min={0} max={8000} step={500} onChange={setSpouseAnnualContribIRA} prefix="$" suffix="/yr"
+            <FieldInput label="Annual Spouse IRA Contribution" value={spouseAnnualContribIRA} min={0} max={8000} step={500} onChange={setSpouseAnnualContribIRA} prefix="$" suffix="/yr"
               note="2024 limit: $7,000 ($8,000 if age 50+)." />
-            <SliderInput label="Spouse Annual Other Savings" value={spouseAnnualContribOther} min={0} max={100000} step={1000} onChange={setSpouseAnnualContribOther} prefix="$" suffix="/yr"
-              note="Additional savings to brokerage, savings accounts, etc." />
+            <FieldInput label="Spouse Annual Other Savings" value={spouseAnnualContribOther} min={0} max={100000} step={1000} onChange={setSpouseAnnualContribOther} prefix="$" suffix="/yr"
+              tooltip="Additional savings to brokerage, savings accounts, etc." />
           </>
         )}
       </Card>
@@ -175,7 +175,7 @@ export default function AssetsStep() {
       {/* Real Estate & Growth — unchanged */}
       <Card className="mb-28">
         <h3 className="card-heading card-heading--purple">Real Estate & Growth</h3>
-        <div className="grid-2">
+        <div className="grid-2 gap-32">
           <div>
             <div className="mb-20">
               <label className="field-label">Own Home?</label>
@@ -185,7 +185,7 @@ export default function AssetsStep() {
               </div>
             </div>
             {homeOwned && (
-              <SliderInput
+              <FieldInput
                 label="Home Value" value={homeValue} min={50000} max={1500000} step={10000}
                 onChange={setHomeValue} prefix="$"
                 note={`Est. property tax in ${state}: ~$${Math.round(homeValue * stateInfo.avgPropertyTaxRate / 12).toLocaleString()}/mo`}
@@ -193,22 +193,22 @@ export default function AssetsStep() {
             )}
           </div>
           <div>
-            <SliderInput label="Expected Return" value={investmentReturn} min={2} max={10}  step={0.5} onChange={setInvestmentReturn} suffix="% / yr"
+            <FieldInput label="Expected Return" value={investmentReturn} min={2} max={10}  step={0.5} onChange={setInvestmentReturn} suffix="% / yr"
               note="Conservative: 4-5%. Moderate: 6-7%. Aggressive: 8%+" />
-            <SliderInput label="General Inflation Rate" value={inflation} min={1} max={6} step={0.5} onChange={setInflation} suffix="% / yr"
+            <FieldInput label="General Inflation Rate" value={inflation} min={1} max={6} step={0.5} onChange={setInflation} suffix="% / yr"
               note="How fast everyday costs rise. Historical avg ~3%. Higher = more conservative." />
-            <SliderInput label="Healthcare Cost Growth" value={healthcareInflation} min={2} max={10} step={0.5} onChange={setHealthcareInflation} suffix="% / yr"
+            <FieldInput label="Healthcare Cost Growth" value={healthcareInflation} min={2} max={10} step={0.5} onChange={setHealthcareInflation} suffix="% / yr"
               note="Medical costs rise faster than general inflation — historically ~5-7%/yr. This is applied separately to your healthcare spending." />
           </div>
         </div>
 
         {homeOwned && (
           <>
-            <SliderInput
+            <FieldInput
               label="Remaining Mortgage Balance"
               value={mortgageBalance} min={0} max={homeValue} step={5000}
               onChange={setMortgageBalance} prefix="$"
-              note="What you still owe on your mortgage today. If it's paid off (or nearly so), enter $0."
+              tooltip="What you still owe on your mortgage today. If it's paid off (or nearly so), enter $0."
             />
             <div style={{ fontSize: 13, color: "#94a3b8", marginTop: -12, marginBottom: 16 }}>
               Estimated Equity: <strong style={{ color: "#e2e8f0" }}>${Math.max(0, homeValue - mortgageBalance).toLocaleString()}</strong>
@@ -229,7 +229,7 @@ export default function AssetsStep() {
             </div>
 
             {homeSaleIntent === "sell" && (
-              <SliderInput
+              <FieldInput
                 label="Planned Sale Age"
                 value={homeSaleAge} min={retirementAge} max={lifeExpectancy} step={1}
                 onChange={setHomeSaleAge} suffix=" yrs"
