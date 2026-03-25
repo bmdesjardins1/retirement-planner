@@ -1,5 +1,5 @@
 import { usePlanner } from "../context/PlannerContext";
-import SliderInput from "../components/SliderInput";
+import FieldInput from "../components/FieldInput";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
 
@@ -38,9 +38,9 @@ export default function IncomeStep() {
       <div className="grid-2">
         <Card>
           <h3 className="card-heading card-heading--green">Social Security</h3>
-          <SliderInput label="Your Social Security Benefit (at Full Retirement Age, 67)" value={ss1} min={0} max={4000} step={50} onChange={setSs1} prefix="$" suffix="/mo"
+          <FieldInput label="Your Social Security Benefit (at Full Retirement Age, 67)" value={ss1} min={0} max={4000} step={50} onChange={setSs1} prefix="$" suffix="/mo"
             note="Check ssa.gov for your estimate (avg. ~$1,900/mo). Your ssa.gov estimate is already in today's dollars." />
-          <SliderInput
+          <FieldInput
             label="Your Planned Claiming Age"
             value={ss1ClaimAge} min={62} max={70} step={1}
             onChange={setSs1ClaimAge} suffix=" yrs"
@@ -48,8 +48,8 @@ export default function IncomeStep() {
           />
           {hasSpouse && (
             <>
-              <SliderInput label="Spouse Social Security Benefit (at Full Retirement Age, 67)" value={ss2} min={0} max={4000} step={50} onChange={setSs2} prefix="$" suffix="/mo" />
-              <SliderInput
+              <FieldInput label="Spouse Social Security Benefit (at Full Retirement Age, 67)" value={ss2} min={0} max={4000} step={50} onChange={setSs2} prefix="$" suffix="/mo" />
+              <FieldInput
                 label="Spouse Planned Claiming Age"
                 value={ss2ClaimAge} min={62} max={70} step={1}
                 onChange={setSs2ClaimAge} suffix=" yrs"
@@ -61,7 +61,7 @@ export default function IncomeStep() {
 
         <Card>
           <h3 className="card-heading card-heading--purple">Other Income</h3>
-          <SliderInput label="Pension"          value={pension}         min={0} max={5000} step={50}  onChange={setPension}         prefix="$" suffix="/mo" />
+          <FieldInput label="Pension"         value={pension}        min={0} max={5000} step={50}  onChange={setPension}        prefix="$" suffix="/mo" />
           {pension > 0 && (
             <div className="mb-20">
               <label className="field-label">Does this pension increase with inflation each year?</label>
@@ -91,7 +91,7 @@ export default function IncomeStep() {
           )}
           {hasSpouse && (
             <>
-              <SliderInput label="Spouse's Pension" value={spousePension} min={0} max={5000} step={50} onChange={setSpousePension} prefix="$" suffix="/mo" />
+              <FieldInput label="Spouse's Pension" value={spousePension} min={0} max={5000} step={50}  onChange={setSpousePension}  prefix="$" suffix="/mo" />
               {spousePension > 0 && (
                 <div className="mb-20">
                   <label className="field-label">Does your spouse's pension increase with inflation each year?</label>
@@ -121,17 +121,17 @@ export default function IncomeStep() {
               )}
             </>
           )}
-          <SliderInput label="Part-Time Work"   value={partTimeIncome}  min={0} max={5000} step={100} onChange={setPartTimeIncome}  prefix="$" suffix="/mo" />
+          <FieldInput label="Part-Time Work"  value={partTimeIncome} min={0} max={5000} step={100} onChange={setPartTimeIncome} prefix="$" suffix="/mo" />
           {partTimeIncome > 0 && (
-            <SliderInput
+            <FieldInput
               label="Stop working at age"
               value={partTimeEndAge} min={retirementAge} max={85} step={1}
               onChange={setPartTimeEndAge} suffix=" yrs"
-              note="Part-time income will be removed from your projection after this age."
+              tooltip="Part-time income will be removed from your projection after this age."
             />
           )}
-          <SliderInput label="Rental / Other Income" value={rentalIncome} min={0} max={5000} step={100} onChange={setRentalIncome} prefix="$" suffix="/mo"
-            note="Rental income, dividends, annuities, or any other recurring income." />
+          <FieldInput label="Rental / Other Income" value={rentalIncome} min={0} max={5000} step={100} onChange={setRentalIncome} prefix="$" suffix="/mo"
+            tooltip="Rental income, dividends, annuities, or any other recurring income." />
         </Card>
       </div>
 

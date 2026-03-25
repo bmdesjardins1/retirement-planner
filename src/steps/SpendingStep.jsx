@@ -1,5 +1,5 @@
 import { usePlanner } from "../context/PlannerContext";
-import SliderInput from "../components/SliderInput";
+import FieldInput from "../components/FieldInput";
 import Card from "../components/Card";
 import SectionTitle from "../components/SectionTitle";
 
@@ -41,19 +41,19 @@ export default function SpendingStep() {
             onClick={() => setHousingType("rent")}
           >I rent</button>
         </div>
-        <div className="grid-2">
-          <SliderInput
+        <div className="grid-2 gap-32">
+          <FieldInput
             label={housingType === "own" ? "Monthly Mortgage Payment" : "Monthly Rent"}
             value={housing} min={0} max={5000} step={50}
             onChange={setHousing} prefix="$" suffix="/mo"
             note="Don't include property taxes here — we calculate those automatically from your home value on the Assets step."
           />
           {housingType === "own" && (
-            <SliderInput
+            <FieldInput
               label="Mortgage Paid Off At Age"
               value={mortgagePayoffAge} min={age} max={lifeExpectancy} step={1}
               onChange={setMortgagePayoffAge} suffix=" yrs"
-              note="After payoff, housing expenses drop to $0 — freeing up that cash flow in your retirement projection."
+              tooltip="After payoff, housing expenses drop to $0, freeing up that cash flow in your retirement projection."
             />
           )}
         </div>
@@ -61,11 +61,11 @@ export default function SpendingStep() {
 
       <div className="grid-2">
         <Card>
-          <SliderInput label="Food & Groceries"            value={food}       min={0} max={2000} step={50} onChange={setFood}       prefix="$" suffix="/mo" />
-          <SliderInput label="Monthly Healthcare in Retirement (on Medicare, age 65+)" value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
+          <FieldInput label="Food & Groceries"            value={food}       min={0} max={2000} step={50} onChange={setFood}       prefix="$" suffix="/mo" />
+          <FieldInput label="Monthly Healthcare in Retirement (on Medicare, age 65+)" value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
             note="Medicare Part B + supplement avg $400–900/mo per person. Applies from age 65 onward." />
           {(retirementAge < 65 || (hasSpouse && spouseRetirementAge < 65)) && (
-            <SliderInput
+            <FieldInput
               label="Monthly Healthcare Before Medicare"
               value={bridgeHealthcare} min={0} max={5000} step={50}
               onChange={setBridgeHealthcare} prefix="$" suffix="/mo"
@@ -75,9 +75,9 @@ export default function SpendingStep() {
         </Card>
 
         <Card>
-          <SliderInput label="Transportation"  value={transport} min={0} max={2000} step={50} onChange={setTransport} prefix="$" suffix="/mo" />
-          <SliderInput label="Leisure & Travel" value={leisure}  min={0} max={3000} step={50} onChange={setLeisure}  prefix="$" suffix="/mo" />
-          <SliderInput label="Other / Misc"     value={other}    min={0} max={2000} step={50} onChange={setOther}    prefix="$" suffix="/mo" />
+          <FieldInput label="Transportation"  value={transport} min={0} max={2000} step={50} onChange={setTransport} prefix="$" suffix="/mo" />
+          <FieldInput label="Leisure & Travel" value={leisure}  min={0} max={3000} step={50} onChange={setLeisure}  prefix="$" suffix="/mo" />
+          <FieldInput label="Other / Misc"     value={other}    min={0} max={2000} step={50} onChange={setOther}    prefix="$" suffix="/mo" />
         </Card>
       </div>
 
@@ -90,17 +90,17 @@ export default function SpendingStep() {
           (help with daily living). Set to $0 if you plan to self-insure or have long-term care insurance.
         </p>
         <div className="grid-2">
-          <SliderInput
+          <FieldInput
             label="Monthly Long-Term Care Cost"
             value={longTermCare} min={0} max={10000} step={100}
             onChange={setLongTermCare} prefix="$" suffix="/mo"
             note="Avg costs (2024): In-home aide ~$5,000/mo · Assisted living ~$4,500/mo · Nursing home ~$8,500/mo"
           />
-          <SliderInput
+          <FieldInput
             label="Planned Start Age"
             value={ltcStartAge} min={retirementAge} max={lifeExpectancy} step={1}
             onChange={setLtcStartAge} suffix=" yrs"
-            note="Age at which you plan to account for long-term care costs in your budget."
+            tooltip="Age at which you plan to account for long-term care costs in your budget."
           />
         </div>
       </Card>
