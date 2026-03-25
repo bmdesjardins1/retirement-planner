@@ -91,6 +91,10 @@ export default function ResultsStep() {
 
   const portfolioAtLifeExpColor = portfolioAtLifeExp > 0 ? "value--green" : "value--red";
 
+  const firstDeathAge = hasSpouse
+    ? Math.min(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
+    : null;
+
   const { successRate, bands } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
     portfolioAtRetirement: results.portfolioAtRetirement,
@@ -314,10 +318,14 @@ export default function ResultsStep() {
 
       {/* Income vs Expenses Chart */}
       <Card className="mb-28">
-        <h3 className="chart-heading">Annual Income vs. Expenses (inflation-adjusted)</h3>
+        <h3 className="chart-heading">
+          {hasSpouse ? "Combined Household Income vs. Expenses" : "Your Income vs. Expenses"} (inflation-adjusted)
+        </h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart
-            data={results.yearsData.filter(d => d.age >= retirementAge && (d.age - retirementAge) % 5 === 0)}
+            data={results.yearsData.filter(
+              d => d.age >= retirementAge && (d.age - retirementAge) % 5 === 0 && d.age <= effectiveLifeExpectancy
+            )}
             margin={{ top: 4, right: 8, bottom: 40, left: 16 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
@@ -337,6 +345,13 @@ export default function ResultsStep() {
               formatter={v => `$${v.toLocaleString()}`}
             />
             <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+            {firstDeathAge && (
+              <ReferenceLine
+                x={firstDeathAge}
+                stroke="#94a3b8" strokeDasharray="4 4"
+                label={{ value: "Survivor phase", fill: "#94a3b8", fontSize: 10, position: "insideTopRight" }}
+              />
+            )}
             <Bar dataKey="income"   fill="rgba(52,211,153,0.7)" name="Income Sources" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" fill="rgba(244,63,94,0.6)"  name="Expenses"       radius={[4, 4, 0, 0]} />
           </BarChart>
