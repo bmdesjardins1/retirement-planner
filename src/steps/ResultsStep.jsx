@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import { usePlanner } from "../context/PlannerContext";
 import Card from "../components/Card";
+import InfoTooltip from "../components/Tooltip";
 import { runMonteCarlo } from "../utils/monteCarlo";
 
 const tooltipStyle = { background: "#0f172a", border: "1px solid rgba(51,65,85,0.8)", borderRadius: 10, fontSize: 12 };
@@ -179,30 +180,56 @@ export default function ResultsStep() {
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid-3 mb-28">
-        <Card>
-          <div className="metric-card-label">Net Monthly Income</div>
-          <div className="metric-card-value value--green">${results.netMonthlyIncome.toLocaleString()}</div>
-          <div className="metric-card-sub">after {state} income tax</div>
-        </Card>
-        <Card>
-          <div className="metric-card-label">Monthly Need at Retirement</div>
-          <div className="metric-card-value value--white">${results.totalMonthlyNeed.toLocaleString()}</div>
-          <div className="metric-card-sub">CoL-adjusted + property tax</div>
-          {longTermCare > 0 && (
-            <div className="metric-card-sub" style={{ color: "#f59e0b", marginTop: 6 }}>
-              Rises to ~${ltcMonthlyAtStart.toLocaleString()}/mo at age {ltcStartAge} (incl. long-term care)
+      {/* Gap Analysis */}
+      <div className="gap-analysis">
+        <p className="gap-analysis-title">Monthly Retirement Picture</p>
+
+        <div className="gap-analysis-row">
+          <span className="gap-analysis-label">Monthly Need at Retirement</span>
+          <span className="gap-analysis-value">${results.totalMonthlyNeed.toLocaleString()}</span>
+        </div>
+
+        <div className="gap-analysis-row">
+          <span className="gap-analysis-label">
+            <InfoTooltip text="Social Security + pension + rental income + part-time income, after state income tax.">
+              <span>Guaranteed Income</span>
+            </InfoTooltip>
+          </span>
+          <span className="gap-analysis-value" style={{ color: "#34d399" }}>
+            − ${results.netMonthlyIncome.toLocaleString()}
+          </span>
+        </div>
+
+        <div className="gap-analysis-row gap-analysis-row--total">
+          <span className="gap-analysis-label">
+            <InfoTooltip text="The amount drawn from your portfolio each month to cover the gap between income and spending. This drives your withdrawal rate.">
+              <span>Monthly Portfolio Draw</span>
+            </InfoTooltip>
+          </span>
+          <div style={{ textAlign: "right" }}>
+            <div className={`gap-analysis-value ${gapPositive ? "value--orange" : "value--green"}`}>
+              {gapPositive
+                ? `$${results.monthlyGap.toLocaleString()}`
+                : `+$${Math.abs(results.monthlyGap).toLocaleString()}`}
             </div>
-          )}
-        </Card>
-        <Card>
-          <div className="metric-card-label">Monthly {gapPositive ? "Withdrawal" : "Surplus"}</div>
-          <div className={`metric-card-value ${gapPositive ? "value--orange" : "value--green"}`}>
-            {gapPositive ? `-$${results.monthlyGap.toLocaleString()}` : `+$${Math.abs(results.monthlyGap).toLocaleString()}`}
+            {gapPositive && (
+              <div className={`gap-analysis-rate ${withdrawalRateColor}`}>
+                {withdrawalRateDisplay}% withdrawal rate
+              </div>
+            )}
+            {!gapPositive && (
+              <div className="gap-analysis-rate" style={{ color: "#34d399" }}>
+                Surplus — added to portfolio
+              </div>
+            )}
           </div>
-          <div className="metric-card-sub">{gapPositive ? "from portfolio" : "added to portfolio"}</div>
-        </Card>
+        </div>
+
+        {longTermCare > 0 && (
+          <p style={{ fontSize: 12, color: "#f59e0b", margin: "12px 0 0" }}>
+            Monthly need rises to ~${ltcMonthlyAtStart.toLocaleString()}/mo at age {ltcStartAge} when long-term care begins.
+          </p>
+        )}
       </div>
 
       {/* Portfolio Chart */}
