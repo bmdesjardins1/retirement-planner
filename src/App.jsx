@@ -13,9 +13,7 @@ function PlannerWizard() {
   return (
     <div className="app">
       <header className="app-header">
-        <p className="app-eyebrow">Retirement Planning Tool</p>
-        <h1 className="app-headline">Will Your Money Last?</h1>
-        <p className="app-sub">A personalized projection based on your real numbers.</p>
+        <h1 className="app-headline">Retirement Planner</h1>
         <nav className="stepper">
           {STEPS.flatMap((s, i) => {
             const isDone   = step > i;
