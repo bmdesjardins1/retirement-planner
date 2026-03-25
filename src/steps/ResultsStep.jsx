@@ -79,6 +79,17 @@ export default function ResultsStep() {
     ? Math.max(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
     : lifeExpectancy;
 
+  const portfolioAtLifeExp =
+    results.yearsData.find(d => d.age >= effectiveLifeExpectancy)?.portfolio ?? 0;
+
+  const portfolioAtLifeExpDisplay =
+    portfolioAtLifeExp <= 0    ? "$0"
+    : portfolioAtLifeExp < 1000 ? `$${Math.round(portfolioAtLifeExp)}`
+    : portfolioAtLifeExp < 1e6  ? `$${Math.round(portfolioAtLifeExp / 1000)}k`
+    :                             `$${(portfolioAtLifeExp / 1e6).toFixed(1)}M`;
+
+  const portfolioAtLifeExpColor = portfolioAtLifeExp > 0 ? "value--green" : "value--red";
+
   const { successRate, bands } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
     portfolioAtRetirement: results.portfolioAtRetirement,
@@ -131,18 +142,20 @@ export default function ResultsStep() {
     <div>
       {/* Verdict Banner */}
       <div className={`verdict-banner ${verdict.bannerClass}`}>
-        <div className="verdict-icon">{verdict.icon}</div>
+        <div className="verdict-icon">
+          <span style={{ color: "currentColor", fontSize: 20 }}>●</span>
+        </div>
         <div>
           <div className="verdict-eyebrow">Retirement Outlook</div>
           <div className={`verdict-label ${verdict.colorClass}`}>{verdict.label}</div>
           <p className="verdict-desc">{verdict.desc}</p>
         </div>
         <div className="verdict-runway">
-          <div className="verdict-runway-label">Savings Runway</div>
-          <div className={`verdict-runway-num ${verdict.colorClass}`}>
-            {results.runOutYear ? results.runwayYears : "30+"}
+          <div className="verdict-runway-label">Portfolio at Age {effectiveLifeExpectancy}</div>
+          <div className={`verdict-runway-num ${portfolioAtLifeExpColor}`}>
+            {portfolioAtLifeExpDisplay}
           </div>
-          <div className="verdict-runway-unit">years</div>
+          <div className="verdict-runway-unit">projected balance</div>
         </div>
         <div className="verdict-runway" style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}>
           <div className="verdict-runway-label">Withdrawal Rate</div>
