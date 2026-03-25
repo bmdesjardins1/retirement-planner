@@ -1,4 +1,5 @@
-import SliderInput from "./SliderInput";
+import FieldInput from "./FieldInput";
+import Tooltip from "./Tooltip";
 
 export default function AccountTypeBlock({
   label,
@@ -13,9 +14,15 @@ export default function AccountTypeBlock({
 }) {
   return (
     <div className="mb-20">
-      <label className="field-label">{label}</label>
-      <p className="field-note">{note}</p>
-      <div className="toggle-group">
+      {note
+        ? (
+          <Tooltip text={note}>
+            <span className="account-type-heading">{label}</span>
+          </Tooltip>
+        )
+        : <span className="account-type-heading">{label}</span>
+      }
+      <div className="toggle-group" style={{ marginTop: 8 }}>
         <button
           className={`toggle${hasAccount ? ' toggle--active' : ''}`}
           onClick={() => onToggle(true)}
@@ -29,8 +36,8 @@ export default function AccountTypeBlock({
           I don't
         </button>
       </div>
-      {hasAccount && (
-        <SliderInput
+      <div className={`collapsible${!hasAccount ? ' collapsible--collapsed' : ''}`}>
+        <FieldInput
           label="Current Balance"
           value={balance}
           min={0}
@@ -40,7 +47,7 @@ export default function AccountTypeBlock({
           prefix="$"
           note={balanceNote}
         />
-      )}
+      </div>
     </div>
   );
 }
