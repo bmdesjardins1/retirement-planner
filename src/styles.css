@@ -122,7 +122,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .stepper-label {
-  font-size: 10px;
+  font-size: 11px;
   color: #475569;
   font-weight: 500;
   letter-spacing: 0.05em;
@@ -185,6 +185,16 @@ input[type="range"]::-webkit-slider-thumb {
   font-family: inherit;
 }
 
+.btn-primary:hover  {
+  filter: brightness(1.1);
+  transition: filter 0.15s;
+}
+.btn-secondary:hover {
+  background: rgba(51, 65, 85, 0.6);
+  color: #cbd5e1;
+  transition: background 0.15s, color 0.15s;
+}
+
 /* === GRID UTILITIES === */
 .grid-2 {
   display: grid;
@@ -198,6 +208,8 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 20px;
 }
 
+.gap-32 { gap: 32px; }
+
 /* === SPACING UTILITIES === */
 .mt-4  { margin-top: 4px;  }
 .mt-6  { margin-top: 6px;  }
@@ -207,8 +219,8 @@ input[type="range"]::-webkit-slider-thumb {
 .mt-28 { margin-top: 28px; }
 .mb-0  { margin-bottom: 0;     }
 .mb-8  { margin-bottom: 8px;   }
-.mb-20 { margin-bottom: 14px;  }
-.mb-28 { margin-bottom: 20px;  }
+.mb-20 { margin-bottom: 20px; }
+.mb-28 { margin-bottom: 28px; }
 .ml-auto { margin-left: auto; }
 
 /* === COLOR UTILITIES === */
@@ -222,6 +234,38 @@ input[type="range"]::-webkit-slider-thumb {
 .value--white  { color: #f1f5f9; }
 .value--dim    { color: #94a3b8; }
 .value--muted  { color: #64748b; }
+
+/* === TOOLTIP === */
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tooltip-icon {
+  font-size: 11px;
+  color: #475569;
+  cursor: help;
+  line-height: 1;
+  user-select: none;
+}
+.tooltip-icon:hover { color: #94a3b8; }
+.tooltip-popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: #1e293b;
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+  white-space: normal;
+  width: 220px;
+  z-index: 100;
+  pointer-events: none;
+}
 
 /* === CARD === */
 .card {
@@ -336,6 +380,18 @@ input[type="range"]::-webkit-slider-thumb {
   color: #34d399;
 }
 
+/* === COLLAPSIBLE === */
+.collapsible {
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+  max-height: 400px; /* sufficient for a single FieldInput */
+  opacity: 1;
+}
+.collapsible--collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
 /* === SELECT === */
 .select-wrapper {
   position: relative;
@@ -384,14 +440,6 @@ input[type="range"]::-webkit-slider-thumb {
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 6px;
-}
-
-.slider-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .slider-value {
@@ -452,6 +500,30 @@ input[type="range"]::-webkit-slider-thumb {
   font-style: italic;
 }
 
+.field-note {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.field-input {
+  margin-bottom: 18px;
+}
+
+.field-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.account-type-heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0 0 8px;
+}
+
 /* === METRIC BOXES (state info, tax summary) === */
 .metric-box {
   border-radius: 12px;
@@ -471,7 +543,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .metric-box-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   font-family: 'DM Mono', monospace;
 }
@@ -517,7 +589,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .verdict-label {
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
   letter-spacing: -0.02em;
 }
@@ -563,7 +635,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .metric-card-value {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   font-family: 'DM Mono', monospace;
 }
@@ -607,7 +679,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .income-summary-per-mo {
-  font-size: 16px;
+  font-size: 14px;
   color: #64748b;
 }
 
@@ -633,7 +705,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .spending-summary-item-value {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   font-family: 'DM Mono', monospace;
 }
