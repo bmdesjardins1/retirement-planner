@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import { usePlanner } from "../context/PlannerContext";
 import Card from "../components/Card";
+import InfoTooltip from "../components/Tooltip";
 import { runMonteCarlo } from "../utils/monteCarlo";
 
 const tooltipStyle = { background: "#0f172a", border: "1px solid rgba(51,65,85,0.8)", borderRadius: 10, fontSize: 12 };
@@ -19,6 +20,7 @@ export default function ResultsStep() {
     investmentReturn,
     trad401k, tradIRA, hasTrad401k, hasTradIRA,
     spouseTrad401k, spouseTradIRA, spouseHasTrad401k, spouseHasTradIRA,
+    planningToMove, moveAge, retirementState, retirementStateInfo,
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
@@ -79,7 +81,25 @@ export default function ResultsStep() {
     ? Math.max(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
     : lifeExpectancy;
 
-  const { successRate, bands } = useMemo(() => runMonteCarlo({
+  const portfolioAtLifeExp =
+    results.yearsData.find(d => d.age >= effectiveLifeExpectancy)?.portfolio ?? 0;
+
+  const portfolioAtLifeExpDisplay =
+    portfolioAtLifeExp <= 0    ? "$0"
+    : portfolioAtLifeExp < 1000 ? `$${Math.round(portfolioAtLifeExp)}`
+    : portfolioAtLifeExp < 1e6  ? `$${Math.round(portfolioAtLifeExp / 1000)}k`
+    :                             `$${(portfolioAtLifeExp / 1e6).toFixed(1)}M`;
+
+  const portfolioAtLifeExpColor = portfolioAtLifeExp > 0 ? "value--green" : "value--red";
+
+  const firstDeathAge = hasSpouse
+    ? Math.min(lifeExpectancy, age + (spouseLifeExpectancy - spouseAge))
+    : null;
+  const firstDeathAgeOnGrid = (firstDeathAge !== null && (firstDeathAge - retirementAge) % 5 === 0)
+    ? firstDeathAge
+    : null;
+
+  const { successRate } = useMemo(() => runMonteCarlo({
     yearsData: results.yearsData,
     portfolioAtRetirement: results.portfolioAtRetirement,
     investmentReturn,
@@ -103,46 +123,37 @@ export default function ResultsStep() {
     primaryResults.yearsData.length,
     spouseResults?.yearsData.length ?? 0,
   );
-  // Build a lookup from age → MC band so we can merge into chartData by index
-  const bandByAge = Object.fromEntries(bands.map(b => [b.age, b]));
-
   const chartData = Array.from({ length: maxLen }, (_, i) => {
     const base = results.yearsData[i];
     const lastAge = results.yearsData[results.yearsData.length - 1].age;
     const chartAge = base ? base.age : lastAge + (i - results.yearsData.length + 1);
-    const band = bandByAge[chartAge];
     return {
       age: chartAge,
       combined: results.yearsData[i]?.portfolio ?? 0,
       primary: primaryResults.yearsData[i]?.portfolio ?? 0,
       spouse: spouseResults?.yearsData[i]?.portfolio ?? 0,
-      // MC band: p10 is the floor, bandWidth stacks on top to reach p90.
-      // Rendered with stackId="mc" so Recharts fills the area between them.
-      mcFloor: band?.p10 ?? null,
-      mcBand:  band ? Math.max(band.p90 - band.p10, 0) : null,
     };
   });
-  const chartCutoffAge = hasSpouse
-    ? Math.max(lifeExpectancy, spouseLifeExpOnPrimaryAxis) + 5
-    : lifeExpectancy + 5;
-  const visibleChartData = chartData.filter(d => d.age <= chartCutoffAge);
+  const visibleChartData = chartData.filter(d => d.age <= effectiveLifeExpectancy);
 
   return (
     <div>
       {/* Verdict Banner */}
       <div className={`verdict-banner ${verdict.bannerClass}`}>
-        <div className="verdict-icon">{verdict.icon}</div>
+        <div className="verdict-icon">
+          <span style={{ color: "currentColor", fontSize: 20 }}>●</span>
+        </div>
         <div>
           <div className="verdict-eyebrow">Retirement Outlook</div>
           <div className={`verdict-label ${verdict.colorClass}`}>{verdict.label}</div>
           <p className="verdict-desc">{verdict.desc}</p>
         </div>
         <div className="verdict-runway">
-          <div className="verdict-runway-label">Savings Runway</div>
-          <div className={`verdict-runway-num ${verdict.colorClass}`}>
-            {results.runOutYear ? results.runwayYears : "30+"}
+          <div className="verdict-runway-label">Portfolio at Age {effectiveLifeExpectancy}</div>
+          <div className={`verdict-runway-num ${portfolioAtLifeExpColor}`}>
+            {portfolioAtLifeExpDisplay}
           </div>
-          <div className="verdict-runway-unit">years</div>
+          <div className="verdict-runway-unit">projected balance</div>
         </div>
         <div className="verdict-runway" style={{ borderLeft: "1px solid rgba(51,65,85,0.4)", paddingLeft: 24 }}>
           <div className="verdict-runway-label">Withdrawal Rate</div>
@@ -166,30 +177,56 @@ export default function ResultsStep() {
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid-3 mb-28">
-        <Card>
-          <div className="metric-card-label">Net Monthly Income</div>
-          <div className="metric-card-value value--green">${results.netMonthlyIncome.toLocaleString()}</div>
-          <div className="metric-card-sub">after {state} income tax</div>
-        </Card>
-        <Card>
-          <div className="metric-card-label">Monthly Need at Retirement</div>
-          <div className="metric-card-value value--white">${results.totalMonthlyNeed.toLocaleString()}</div>
-          <div className="metric-card-sub">CoL-adjusted + property tax</div>
-          {longTermCare > 0 && (
-            <div className="metric-card-sub" style={{ color: "#f59e0b", marginTop: 6 }}>
-              Rises to ~${ltcMonthlyAtStart.toLocaleString()}/mo at age {ltcStartAge} (incl. long-term care)
+      {/* Gap Analysis */}
+      <div className="gap-analysis">
+        <p className="gap-analysis-title">Monthly Retirement Picture</p>
+
+        <div className="gap-analysis-row">
+          <span className="gap-analysis-label">Monthly Need at Retirement</span>
+          <span className="gap-analysis-value">${results.totalMonthlyNeed.toLocaleString()}</span>
+        </div>
+
+        <div className="gap-analysis-row">
+          <span className="gap-analysis-label">
+            <InfoTooltip text="Social Security + pension + rental income + part-time income, after state income tax.">
+              <span>Guaranteed Income</span>
+            </InfoTooltip>
+          </span>
+          <span className="gap-analysis-value" style={{ color: "#34d399" }}>
+            − ${results.netMonthlyIncome.toLocaleString()}
+          </span>
+        </div>
+
+        <div className="gap-analysis-row gap-analysis-row--total">
+          <span className="gap-analysis-label">
+            <InfoTooltip text="The amount drawn from your portfolio each month to cover the gap between income and spending. This drives your withdrawal rate.">
+              <span>Monthly Portfolio Draw</span>
+            </InfoTooltip>
+          </span>
+          <div style={{ textAlign: "right" }}>
+            <div className={`gap-analysis-value ${gapPositive ? "value--orange" : "value--green"}`}>
+              {gapPositive
+                ? `$${results.monthlyGap.toLocaleString()}`
+                : `+$${Math.abs(results.monthlyGap).toLocaleString()}`}
             </div>
-          )}
-        </Card>
-        <Card>
-          <div className="metric-card-label">Monthly {gapPositive ? "Withdrawal" : "Surplus"}</div>
-          <div className={`metric-card-value ${gapPositive ? "value--orange" : "value--green"}`}>
-            {gapPositive ? `-$${results.monthlyGap.toLocaleString()}` : `+$${Math.abs(results.monthlyGap).toLocaleString()}`}
+            {gapPositive && (
+              <div className={`gap-analysis-rate ${withdrawalRateColor}`}>
+                {withdrawalRateDisplay}% withdrawal rate
+              </div>
+            )}
+            {!gapPositive && (
+              <div className="gap-analysis-rate" style={{ color: "#34d399" }}>
+                Surplus — added to portfolio
+              </div>
+            )}
           </div>
-          <div className="metric-card-sub">{gapPositive ? "from portfolio" : "added to portfolio"}</div>
-        </Card>
+        </div>
+
+        {longTermCare > 0 && (
+          <p style={{ fontSize: 12, color: "#f59e0b", margin: "12px 0 0" }}>
+            Monthly need rises to ~${ltcMonthlyAtStart.toLocaleString()}/mo at age {ltcStartAge} when long-term care begins.
+          </p>
+        )}
       </div>
 
       {/* Portfolio Chart */}
@@ -220,8 +257,6 @@ export default function ResultsStep() {
               labelFormatter={v => `Age ${v}`}
               formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
             />
-            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
-
             <ReferenceLine
               x={retirementAge}
               stroke="#818cf8" strokeDasharray="4 4"
@@ -246,29 +281,55 @@ export default function ResultsStep() {
                 label={{ value: "Spouse Life Exp.", fill: "#fb923c", fontSize: 10, position: "insideTopLeft" }}
               />
             )}
-
-            {/* MC confidence band: mcFloor (transparent base) + mcBand (width) stack to fill p10→p90 */}
-            <Area type="monotone" dataKey="mcFloor" stackId="mc" stroke="none" fill="transparent" dot={false} legendType="none" connectNulls={false} />
-            <Area type="monotone" dataKey="mcBand"  stackId="mc" stroke="none" fill="rgba(52,211,153,0.12)" dot={false} name="Market range (10th–90th %ile)" connectNulls={false} />
-
             <Area type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} fill="url(#portGrad)" dot={false} name="Combined" />
-            <Area type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="You" />
-            {hasSpouse && <Area type="monotone" dataKey="spouse" stroke="#60a5fa" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} name="Spouse" />}
           </AreaChart>
         </ResponsiveContainer>
-        {hasSpouse && (
+      </Card>
+
+      {/* Scenario Comparison Chart — couples only */}
+      {hasSpouse && (
+        <Card className="mb-28">
+          <h3 className="chart-heading">Scenario Comparison: You vs. Spouse vs. Combined</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={visibleChartData} margin={{ top: 4, right: 8, bottom: 40, left: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
+              <XAxis
+                dataKey="age"
+                tick={{ fill: "#475569", fontSize: 11 }}
+                label={{ value: "Age", position: "insideBottom", offset: -12, fill: "#475569", fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fill: "#475569", fontSize: 11 }}
+                tickFormatter={v => v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`}
+                width={64}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={v => `Age ${v}`}
+                formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
+              />
+              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+              <Line type="monotone" dataKey="combined" stroke="#34d399" strokeWidth={2.5} dot={false} name="Combined" />
+              <Line type="monotone" dataKey="primary"  stroke="#818cf8" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="You" />
+              <Line type="monotone" dataKey="spouse"   stroke="#60a5fa" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="Spouse" />
+            </LineChart>
+          </ResponsiveContainer>
           <p className="disclaimer" style={{ marginTop: 8, marginBottom: 0 }}>
             Individual trajectories (You / Spouse) use 60% of household expenses — the standard survivor planning assumption. Combined uses 100%.
           </p>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Income vs Expenses Chart */}
       <Card className="mb-28">
-        <h3 className="chart-heading">Annual Income vs. Expenses (inflation-adjusted)</h3>
+        <h3 className="chart-heading">
+          {hasSpouse ? "Combined Household Income vs. Expenses" : "Your Income vs. Expenses"} (inflation-adjusted)
+        </h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart
-            data={results.yearsData.filter(d => d.age >= retirementAge && (d.age - retirementAge) % 5 === 0)}
+            data={results.yearsData.filter(
+              d => d.age >= retirementAge && (d.age - retirementAge) % 5 === 0 && d.age <= effectiveLifeExpectancy
+            )}
             margin={{ top: 4, right: 8, bottom: 40, left: 16 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
@@ -288,6 +349,13 @@ export default function ResultsStep() {
               formatter={v => `$${v.toLocaleString()}`}
             />
             <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+            {firstDeathAgeOnGrid && (
+              <ReferenceLine
+                x={firstDeathAgeOnGrid}
+                stroke="#94a3b8" strokeDasharray="4 4"
+                label={{ value: "Survivor phase", fill: "#94a3b8", fontSize: 10, position: "insideTopRight" }}
+              />
+            )}
             <Bar dataKey="income"   fill="rgba(52,211,153,0.7)" name="Income Sources" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" fill="rgba(244,63,94,0.6)"  name="Expenses"       radius={[4, 4, 0, 0]} />
           </BarChart>
@@ -309,6 +377,15 @@ export default function ResultsStep() {
           <div className="metric-box metric-box--green">
             <div className="metric-box-label">{state} State Tax /mo</div>
             <div className="metric-box-value value--red">−${results.stateTaxMonthly.toLocaleString()}</div>
+            {planningToMove && (
+              <div className="metric-box-note" style={{ marginTop: 8 }}>
+                After your planned move to {retirementState} at age {moveAge}:{" "}
+                state income tax changes to {(retirementStateInfo.incomeTax * 100).toFixed(1)}%
+                {retirementStateInfo.hasSSIncomeTax
+                  ? " (SS benefits are taxed in that state)"
+                  : " (SS benefits are not taxed in that state)"}.
+              </div>
+            )}
           </div>
           <div className="metric-box metric-box--purple">
             <div className="metric-box-label">Property Tax /mo</div>
