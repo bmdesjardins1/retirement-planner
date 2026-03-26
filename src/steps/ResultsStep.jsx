@@ -381,6 +381,111 @@ export default function ResultsStep() {
         </p>
       </Card>
 
+      {/* Monte Carlo Simulation Section */}
+      <div ref={mcSectionRef}>
+        <Card className="mb-28">
+          <h3 className="chart-heading">Monte Carlo Simulation</h3>
+          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
+            1,000 simulations varying annual portfolio returns. The shaded band shows the range of outcomes —
+            the median line is the middle scenario, and dashed lines mark the best and worst 10%.
+          </p>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={bandChartData} margin={{ top: 4, right: 8, bottom: 40, left: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
+              <XAxis
+                dataKey="age"
+                tick={{ fill: "#475569", fontSize: 11 }}
+                label={{ value: "Age", position: "insideBottom", offset: -12, fill: "#475569", fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fill: "#475569", fontSize: 11 }}
+                tickFormatter={v => v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`}
+                label={{ value: "Portfolio Value", angle: -90, position: "insideLeft", offset: 16, fill: "#475569", fontSize: 11 }}
+                width={64}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={v => `Age ${v}`}
+                formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
+              />
+              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
+              {/* Stacked area band: transparent p10 floor (no stackId) + visible bandWidth fill stacked on top */}
+              <Area dataKey="p10" fill="transparent" stroke="none" legendType="none" />
+              <Area dataKey="bandWidth" stackId="band" fill="rgba(52,211,153,0.15)" stroke="none" name="Range (10th–90th %ile)" />
+              <Line dataKey="p50" stroke="#34d399" strokeWidth={2} dot={false} name="Median" />
+              <Line dataKey="p10" stroke="#34d399" strokeWidth={1} strokeDasharray="4 3" dot={false} name="Pessimistic (worst 10%)" />
+              <Line dataKey="p90" stroke="#34d399" strokeWidth={1} strokeDasharray="4 3" dot={false} name="Optimistic (best 10%)" />
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {/* Volatility toggle */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>Portfolio Volatility</div>
+            <div className="mc-toggle">
+              {[
+                { key: "low",    label: "Conservative" },
+                { key: "medium", label: "Balanced"      },
+                { key: "high",   label: "Aggressive"    },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  className={`mc-toggle-btn${stdDevSetting === key ? " mc-toggle-btn--active" : ""}`}
+                  onClick={() => setStdDevSetting(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mc-toggle-desc">
+              {stdDevSetting === "low"    && "Heavy bonds, stable returns. Annual swings rarely exceed ±10%."}
+              {stdDevSetting === "medium" && "60/40 stocks/bonds. Annual swings typically ±15%."}
+              {stdDevSetting === "high"   && "All equities. Annual swings can exceed ±30%."}
+            </div>
+          </div>
+
+          {/* Failure stats row */}
+          <div className="grid-3" style={{ marginTop: 20 }}>
+            <div className="metric-box metric-box--green">
+              <div className="metric-box-label">Success Rate</div>
+              <div className={`metric-box-value ${successRateColor}`}>{successRate}%</div>
+              <div className="metric-box-note">
+                of 1,000 simulations survived to age {effectiveLifeExpectancy}
+              </div>
+            </div>
+            <div className="metric-box metric-box--green">
+              <div className="metric-box-label">Median Failure Age</div>
+              <div className="metric-box-value value--orange">
+                {medianFailureAge ?? "—"}
+              </div>
+              <div className="metric-box-note">
+                {medianFailureAge === null ? "No failures" : "half of failed simulations depleted by this age"}
+              </div>
+            </div>
+            <div className="metric-box metric-box--green">
+              <div className="metric-box-label">Worst 10% Depleted By</div>
+              <div className="metric-box-value value--red">
+                {p10DepletionAge ?? "—"}
+              </div>
+              <div className="metric-box-note">
+                {p10DepletionAge === null ? "p10 never depleted" : "age when the worst 10% of outcomes ran dry"}
+              </div>
+            </div>
+          </div>
+
+          {/* Sequence of returns explainer — shown only when not all simulations succeed */}
+          {successRate < 100 && (
+            <div className="mc-explainer">
+              Most failures are driven by poor market returns in the first 5–7 years of retirement — not the
+              long-run average. Even if average returns are good, selling investments at a loss early on
+              permanently reduces your portfolio. This is called <strong>sequence of returns risk</strong>.
+              Retiring with a lower withdrawal rate or a cash buffer for the first few years significantly
+              reduces this risk.
+            </div>
+          )}
+        </Card>
+      </div>
+
       {/* Tax & Cost Summary */}
       <Card>
         <h3 className="chart-heading">Taxes & Cost of Living Impact</h3>
