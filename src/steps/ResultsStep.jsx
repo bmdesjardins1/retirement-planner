@@ -410,8 +410,8 @@ export default function ResultsStep() {
                 formatter={(v, n) => [`$${v.toLocaleString()}`, n]}
               />
               <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 12, color: "#64748b" }} />
-              {/* Stacked area band: transparent p10 floor (no stackId) + visible bandWidth fill stacked on top */}
-              <Area dataKey="p10" fill="transparent" stroke="none" legendType="none" />
+              {/* Stacked area band: p10 transparent floor + bandWidth visible fill, both share stackId="band" */}
+              <Area dataKey="p10" stackId="band" fill="transparent" stroke="none" legendType="none" />
               <Area dataKey="bandWidth" stackId="band" fill="rgba(52,211,153,0.15)" stroke="none" name="Range (10th–90th %ile)" />
               <Line dataKey="p50" stroke="#34d399" strokeWidth={2} dot={false} name="Median" />
               <Line dataKey="p10" stroke="#34d399" strokeWidth={1} strokeDasharray="4 3" dot={false} name="Pessimistic (worst 10%)" />
