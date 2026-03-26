@@ -25,9 +25,9 @@ function normalSample(mean, stddev) {
  * @param {number} opts.retirementAge          - Primary retirement age
  * @param {number} opts.effectiveLifeExpectancy - Last age that needs to be funded
  * @param {number} [opts.stdDev=10]            - Annual return std deviation (%, e.g. 10)
- * @param {number} [opts.simCount=500]         - Number of simulations
+ * @param {number} [opts.simCount=1000]        - Number of simulations
  *
- * @returns {{ successRate: number, bands: Array<{age, p10, p50, p90}> }}
+ * @returns {{ successRate: number, bands: Array<{age, p10, p50, p90}>, medianFailureAge: number|null, p10DepletionAge: number|null }}
  */
 export function runMonteCarlo({
   yearsData,
@@ -36,11 +36,11 @@ export function runMonteCarlo({
   retirementAge,
   effectiveLifeExpectancy,
   stdDev = 10,
-  simCount = 500,
+  simCount = 1000,
 }) {
   // Only simulate the drawdown phase
   const drawdown = yearsData.filter(d => d.age >= retirementAge);
-  if (drawdown.length === 0) return { successRate: 100, bands: [] };
+  if (drawdown.length === 0) return { successRate: 100, bands: [], medianFailureAge: null, p10DepletionAge: null };
 
   const meanReturn = investmentReturn / 100;
   const stdReturn  = stdDev / 100;
@@ -48,11 +48,11 @@ export function runMonteCarlo({
   // Collect portfolio value at each year across all simulations
   const perYear = Array.from({ length: drawdown.length }, () => []);
   let successes = 0;
+  const failureAges = [];
 
   for (let sim = 0; sim < simCount; sim++) {
     let portfolio = portfolioAtRetirement;
     let failed = false;
-    let failedAt = -1;
 
     for (let i = 0; i < drawdown.length; i++) {
       if (failed) {
@@ -69,7 +69,7 @@ export function runMonteCarlo({
         // Only count as failure if the portfolio runs dry before life expectancy
         if (drawdown[i].age <= effectiveLifeExpectancy) {
           failed = true;
-          failedAt = drawdown[i].age;
+          failureAges.push(drawdown[i].age);
         }
       }
 
@@ -90,8 +90,21 @@ export function runMonteCarlo({
     };
   });
 
+  // Compute medianFailureAge: median of all failure ages, or null if no failures
+  let medianFailureAge = null;
+  if (failureAges.length > 0) {
+    const sorted = failureAges.slice().sort((a, b) => a - b);
+    const mid = (sorted.length - 1) / 2;
+    medianFailureAge = Math.round((sorted[Math.floor(mid)] + sorted[Math.ceil(mid)]) / 2);
+  }
+
+  // Compute p10DepletionAge: first age where p10 === 0, or null if never hits 0
+  const p10DepletionAge = bands.find(b => b.p10 === 0)?.age ?? null;
+
   return {
     successRate: Math.round((successes / simCount) * 100),
     bands,
+    medianFailureAge,
+    p10DepletionAge,
   };
 }
