@@ -612,7 +612,7 @@ export default function ResultsStep() {
 
         {/* 4. Home Sale — full-width, no change */}
         {homeSaleYear && (
-          <div className="metric-box metric-box--green mt-20" style={{ gridColumn: "1 / -1" }}>
+          <div className="metric-box metric-box--green mt-20">
             <div className="metric-box-label">Home Sale</div>
             <div className="metric-box-value value--green">
               +${homeSaleYear.homeSaleProceeds.toLocaleString()}
