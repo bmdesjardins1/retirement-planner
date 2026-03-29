@@ -7,6 +7,7 @@ import { usePlanner } from "../context/PlannerContext";
 import Card from "../components/Card";
 import InfoTooltip from "../components/Tooltip";
 import { runMonteCarlo } from "../utils/monteCarlo";
+import { ssBreakeven } from "../utils/ssUtils";
 
 const tooltipStyle = { background: "#0f172a", border: "1px solid rgba(51,65,85,0.8)", borderRadius: 10, fontSize: 12 };
 
@@ -21,6 +22,7 @@ export default function ResultsStep() {
     trad401k, tradIRA, hasTrad401k, hasTradIRA,
     spouseTrad401k, spouseTradIRA, spouseHasTrad401k, spouseHasTradIRA,
     planningToMove, moveAge, retirementState, retirementStateInfo,
+    ss1, ss2, ss1ClaimAge, ss2ClaimAge,
   } = usePlanner();
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
@@ -118,6 +120,10 @@ export default function ResultsStep() {
     p50: b.p50,
     p90: b.p90,
   }));
+
+  // SS breakeven: pass raw ss1/ss2 (FRA-equivalent), NOT adjustedSS1/adjustedSS2
+  const primaryBreakeven = ss1 > 0 ? ssBreakeven(ss1, ss1ClaimAge) : null;
+  const spouseBreakeven  = hasSpouse && ss2 > 0 ? ssBreakeven(ss2, ss2ClaimAge) : null;
 
   const successRateColor =
     successRate >= 90 ? "value--green"  :
@@ -488,87 +494,123 @@ export default function ResultsStep() {
 
       {/* Tax & Cost Summary */}
       <Card>
-        <h3 className="chart-heading">Taxes & Cost of Living Impact</h3>
-        <div className="grid-2">
-          <div className="metric-box metric-box--green">
-            <div className="metric-box-label">Federal Tax (est.) /mo</div>
-            <div className="metric-box-value value--red">−${results.federalTaxMonthly.toLocaleString()}</div>
-            <div className="metric-box-note">Based on 2024 tax rates</div>
+        <h3 className="chart-heading">Taxes & Planning Insights</h3>
+
+        {/* 1. Tax Snapshot — always shown */}
+        <div className="tax-snapshot">
+          <div className="tax-snapshot-row">
+            <span className="tax-snapshot-label">Federal Tax (est.)</span>
+            <span className="tax-snapshot-value">−${results.federalTaxMonthly.toLocaleString()}/mo</span>
           </div>
-          <div className="metric-box metric-box--green">
-            <div className="metric-box-label">{state} State Tax /mo</div>
-            <div className="metric-box-value value--red">−${results.stateTaxMonthly.toLocaleString()}</div>
-            {planningToMove && (
-              <div className="metric-box-note" style={{ marginTop: 8 }}>
-                After your planned move to {retirementState} at age {moveAge}:{" "}
-                state income tax changes to {(retirementStateInfo.incomeTax * 100).toFixed(1)}%
-                {retirementStateInfo.hasSSIncomeTax
-                  ? " (SS benefits are taxed in that state)"
-                  : " (SS benefits are not taxed in that state)"}.
+          <div className="tax-snapshot-row">
+            <span className="tax-snapshot-label">{state} State Tax</span>
+            <span className="tax-snapshot-value">−${results.stateTaxMonthly.toLocaleString()}/mo</span>
+          </div>
+          {planningToMove && (
+            <div className="tax-snapshot-note">
+              After move to {retirementState} at age {moveAge}: income tax → {(retirementStateInfo.incomeTax * 100).toFixed(1)}%
+              {" · SS benefits "}{retirementStateInfo.hasSSIncomeTax ? "taxed" : "not taxed"}
+            </div>
+          )}
+          <div className="tax-snapshot-row">
+            <span className="tax-snapshot-label">Property Tax</span>
+            <span className="tax-snapshot-value">−${results.monthlyPropertyTax.toLocaleString()}/mo</span>
+          </div>
+          {longTermCare > 0 && (
+            <div className="tax-snapshot-row">
+              <span className="tax-snapshot-label">Long-Term Care</span>
+              <span className="tax-snapshot-value">−${longTermCare.toLocaleString()}/mo · starts age {ltcStartAge}</span>
+            </div>
+          )}
+          <hr className="tax-snapshot-divider" />
+          <div className="tax-snapshot-total">
+            <span>Total</span>
+            <span>−${(results.federalTaxMonthly + results.stateTaxMonthly + results.monthlyPropertyTax + longTermCare).toLocaleString()}/mo</span>
+          </div>
+          <div className="tax-snapshot-row" style={{ marginTop: 8 }}>
+            <span className="tax-snapshot-label">Cost of Living</span>
+            <span className="tax-snapshot-value">
+              {results.costOfLivingDelta > 0 ? "+" : ""}{results.costOfLivingDelta}% vs national avg
+            </span>
+          </div>
+        </div>
+
+        {/* 2. Planning Insights Row — shown when any apply */}
+        {(firstRmdYear || firstIrmaaYear || showRothWindow) && (
+          <div className="insights-row">
+            {firstRmdYear && (
+              <div className="metric-box metric-box--yellow">
+                <div className="metric-box-label">Required Minimum Distributions</div>
+                <div className="metric-box-value value--yellow">${Math.round(firstRmdYear.rmd / 12).toLocaleString()}/mo</div>
+                <div className="metric-box-note">
+                  Starting age {firstRmdYear.age} · IRS-required withdrawals from pre-tax accounts. Excess reinvested as taxable income. Consider Roth conversions before 73.
+                </div>
+              </div>
+            )}
+            {firstIrmaaYear && (
+              <div className="metric-box metric-box--yellow">
+                <div className="metric-box-label">Medicare IRMAA Surcharge</div>
+                <div className="metric-box-value value--yellow">+${firstIrmaaYear.irmaa.toLocaleString()}/mo per person</div>
+                <div className="metric-box-note">
+                  Based on guaranteed income. Roth withdrawals don't count toward the income limit — conversions before 65 can reduce this.
+                </div>
+              </div>
+            )}
+            {showRothWindow && (
+              <div className="metric-box metric-box--yellow">
+                <div className="metric-box-label">Roth Conversion Window</div>
+                <div className="metric-box-value value--yellow">Ages {retirementAge}–72</div>
+                <div className="metric-box-note">
+                  {rothWindowYears} years before RMDs begin. Lower income in this window may allow tax-efficient conversions — Roth accounts have no RMDs and withdrawals are tax-free.
+                </div>
               </div>
             )}
           </div>
-          <div className="metric-box metric-box--purple">
-            <div className="metric-box-label">Property Tax /mo</div>
-            <div className="metric-box-value value--purple">−${results.monthlyPropertyTax.toLocaleString()}</div>
-          </div>
-          {longTermCare > 0 ? (
-            <div className="metric-box metric-box--yellow">
-              <div className="metric-box-label">Long-Term Care /mo</div>
-              <div className="metric-box-value value--yellow">−${longTermCare.toLocaleString()}</div>
-              <div className="metric-box-note">starts age {ltcStartAge} · inflates ~5.5%/yr</div>
-            </div>
-          ) : (
-            <div className="metric-box metric-box--yellow">
-              <div className="metric-box-label">CoL Adjustment</div>
-              <div className="metric-box-value value--yellow">
-                {results.costOfLivingDelta > 0 ? "+" : ""}{results.costOfLivingDelta}%
+        )}
+
+        {/* 3. SS Breakeven Row — shown when at least one box renders */}
+        {(primaryBreakeven !== null || spouseBreakeven !== null) && (
+          <div className="insights-row">
+            {primaryBreakeven !== null && (
+              <div className="metric-box metric-box--green">
+                <div className="metric-box-label">Social Security · You</div>
+                <div className="metric-box-value value--green">age {primaryBreakeven.breakevenAge}</div>
+                <div className="metric-box-note">Claim {ss1ClaimAge} → delay to {primaryBreakeven.compareAge}</div>
+                <div className="metric-box-note" style={{ marginTop: 4 }}>
+                  ${primaryBreakeven.currentBenefit}/mo now vs ${primaryBreakeven.compareBenefit}/mo if you wait
+                </div>
+                <div className="metric-box-note" style={{ marginTop: 4 }}>
+                  If you live past <strong>{primaryBreakeven.breakevenAge}</strong>, waiting pays off. If not, claiming at {ss1ClaimAge} wins.
+                </div>
+                <div className="metric-box-note" style={{ marginTop: 4, color: primaryBreakeven.breakevenAge <= lifeExpectancy ? "#34d399" : "#64748b" }}>
+                  {primaryBreakeven.breakevenAge <= lifeExpectancy
+                    ? `Within your life expectancy of ${lifeExpectancy}`
+                    : `Past your life expectancy of ${lifeExpectancy} — early claiming may be advantageous.`}
+                </div>
               </div>
-              <div className="metric-box-note">vs national avg</div>
-            </div>
-          )}
-        </div>
-        {firstRmdYear && (
-          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
-            <div className="metric-box-label">Required Minimum Distributions (RMDs)</div>
-            <div className="metric-box-value value--yellow">${Math.round(firstRmdYear.rmd / 12).toLocaleString()}/mo</div>
-            <div className="metric-box-note">
-              Starting at age {firstRmdYear.age}, the IRS requires you to withdraw a minimum amount from your
-              traditional (pre-tax) accounts each year — whether you need the money or not.
-              Excess withdrawals above your spending need are reinvested in your taxable account but count as
-              ordinary income, which can increase your tax bill. Consider Roth conversions before age 73 to reduce future RMDs.
-            </div>
+            )}
+            {spouseBreakeven !== null && (
+              <div className="metric-box metric-box--green">
+                <div className="metric-box-label">Social Security · Spouse</div>
+                <div className="metric-box-value value--green">age {spouseBreakeven.breakevenAge}</div>
+                <div className="metric-box-note">Claim {ss2ClaimAge} → delay to {spouseBreakeven.compareAge}</div>
+                <div className="metric-box-note" style={{ marginTop: 4 }}>
+                  ${spouseBreakeven.currentBenefit}/mo now vs ${spouseBreakeven.compareBenefit}/mo if you wait
+                </div>
+                <div className="metric-box-note" style={{ marginTop: 4 }}>
+                  If you live past <strong>{spouseBreakeven.breakevenAge}</strong>, waiting pays off. If not, claiming at {ss2ClaimAge} wins.
+                </div>
+                <div className="metric-box-note" style={{ marginTop: 4, color: spouseBreakeven.breakevenAge <= spouseLifeExpectancy ? "#34d399" : "#64748b" }}>
+                  {spouseBreakeven.breakevenAge <= spouseLifeExpectancy
+                    ? `Within spouse's life expectancy of ${spouseLifeExpectancy}`
+                    : `Past spouse's life expectancy of ${spouseLifeExpectancy} — early claiming may be advantageous.`}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* IRMAA surcharge */}
-        {medicareYears.length > 0 && (firstIrmaaYear ? (
-          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
-            <div className="metric-box-label">Medicare IRMAA</div>
-            <div className="metric-box-value value--yellow">
-              +${firstIrmaaYear.irmaa.toLocaleString()}/mo per person
-            </div>
-            <div className="metric-box-note">
-              Based on your guaranteed retirement income (SS, pension, other fixed sources).
-              Actual surcharge may be higher if large traditional account withdrawals push
-              your income up.
-            </div>
-            <div className="metric-box-note" style={{ marginTop: 4 }}>
-              Roth conversions before 65 can reduce this — Roth withdrawals don't count
-              toward the Medicare income limit.
-            </div>
-          </div>
-        ) : (
-          <div className="metric-box metric-box--green mt-20" style={{ gridColumn: "1 / -1" }}>
-            <div className="metric-box-label">Medicare IRMAA</div>
-            <div className="metric-box-value value--green">No surcharge</div>
-            <div className="metric-box-note">
-              Your projected income is below the Medicare IRMAA threshold (based on 2024 brackets —
-              not adjusted for future premium changes).
-            </div>
-          </div>
-        ))}
-
+        {/* 4. Home Sale — full-width, no change */}
         {homeSaleYear && (
           <div className="metric-box metric-box--green mt-20" style={{ gridColumn: "1 / -1" }}>
             <div className="metric-box-label">Home Sale</div>
@@ -578,20 +620,6 @@ export default function ResultsStep() {
             <div className="metric-box-note">
               At age {homeSaleYear.age} — one-time lump sum added to your portfolio after ~5% in realtor and closing costs.
               Capital gains tax is not modeled here — if your home has appreciated significantly, consult a tax advisor.
-            </div>
-          </div>
-        )}
-
-        {showRothWindow && (
-          <div className="metric-box metric-box--yellow mt-20" style={{ gridColumn: "1 / -1" }}>
-            <div className="metric-box-label">Roth Conversion Window</div>
-            <div className="metric-box-value value--yellow">
-              Ages {retirementAge}–72
-            </div>
-            <div className="metric-box-note">
-              {rothWindowYears} years before RMDs begin at 73.
-              Your income may be lower during this window — converting some traditional savings to Roth
-              could reduce your lifetime tax bill. Roth accounts have no RMDs and withdrawals are tax-free.
             </div>
           </div>
         )}
