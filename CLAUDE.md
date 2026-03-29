@@ -16,7 +16,7 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `docs/superpowers/plans/` — implementation plans
 
 ## Active Work
-**Status:** Phase 2 in progress. 9 features shipped to main.
+**Status:** Phase 2 in progress. 11 features shipped to main.
 
 **Completed:**
 - SS claiming age (62–70 slider, SSA formula, survivor benefit transition in combined projection)
@@ -27,8 +27,10 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - Roth conversion window callout (PR #8, 2026-03-23) — yellow metric box in Tax & Cost Summary
 - Pension survivor benefit modeling (PR #9, 2026-03-23) — survivor % selectors for both pensions, spouse pension input, corrected drawdown loop
 - calc.js model accuracy audit (PR #10, 2026-03-24) — MAGI fix, dead code removal, simplification comments
+- Site design cleanup (PR #14 input steps, PR #15 results page, 2026-03-25)
+- Monte Carlo simulation (PR #16 + band fix PR #17, 2026-03-25) — confidence band chart, volatility toggle, failure stats, sequence-of-returns explainer
 
-**Resume point:** Site design cleanup — brainstorm not started yet. Invoke `superpowers:brainstorming` to kick it off.
+**Resume point:** Tax & Cost Summary redesign + SS breakeven — spec written (`docs/superpowers/specs/2026-03-26-tax-summary-redesign-and-ss-breakeven.md`), spec review ran but found issues. Do NOT re-brainstorm. Fix spec issues (see `memory/project_tax_ss_breakeven.md`), re-run spec reviewer, get user sign-off, then invoke `superpowers:writing-plans`.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes

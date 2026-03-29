@@ -14,3 +14,30 @@ export function ssAdjustmentFactor(claimAge, fra = 67) {
     : 36 * (5 / 9 / 100) + (monthsEarly - 36) * (5 / 12 / 100);
   return +(1 - reduction).toFixed(6);
 }
+
+/**
+ * Returns breakeven analysis for delaying SS claiming.
+ * Pass the raw FRA-equivalent benefit (ss1/ss2 from context), NOT adjustedSS1/adjustedSS2 —
+ * this function applies ssAdjustmentFactor internally.
+ *
+ * compareAge: FRA (67) if claimAge < FRA, else 70
+ * breakevenAge: age at which cumulative SS income from delaying overtakes early claiming
+ * Returns null if claimAge >= 70 (already at maximum — no delay possible)
+ *
+ * Uses nominal dollars with no time-value adjustment — matches SSA methodology.
+ */
+export function ssBreakeven(monthlyBenefit, claimAge, fra = 67) {
+  if (claimAge >= 70) return null;
+
+  const compareAge     = claimAge < fra ? fra : 70;
+  const currentBenefit = Math.round(monthlyBenefit * ssAdjustmentFactor(claimAge, fra));
+  const compareBenefit = Math.round(monthlyBenefit * ssAdjustmentFactor(compareAge, fra));
+  const monthsMissed   = (compareAge - claimAge) * 12;
+  const monthlyGain    = compareBenefit - currentBenefit;
+
+  if (monthlyGain <= 0) return null; // shouldn't occur given SSA rules
+
+  const breakevenAge = compareAge + (monthsMissed * currentBenefit) / monthlyGain / 12;
+
+  return { compareAge, currentBenefit, compareBenefit, breakevenAge: +breakevenAge.toFixed(1) };
+}
