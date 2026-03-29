@@ -7,7 +7,7 @@
 
 ## Goal
 
-Add a "What If?" tab to the Results page that lets users compare their current plan against an alternate scenario by adjusting up to 5 key variables. Shows verdict, portfolio chart, and key metrics side by side.
+Add a "What If?" tab to the Results page that lets users compare their current plan against an alternate scenario by adjusting up to 6 key variables. Shows verdict, portfolio chart, and key metrics side by side.
 
 ---
 
@@ -253,29 +253,24 @@ const wiResults = useMemo(() => runProjection({
 ]);
 ```
 
-**Import:** `import { runProjection, verdictConfig } from "../utils/calc";` — `verdictConfig` is needed for the verdict display. `ssAdjustmentFactor` is already imported in `ResultsStep.jsx`; import it in `WhatIfPanel.jsx` too.
+**Import:** `import { runProjection } from "../utils/calc";` — `verdict` is already included in the object returned by `runProjection()` (it is `verdictConfig(runwayYears, effectiveLifeExpectancy, retirementAge)` computed inside `runProjection`). No need to call `verdictConfig` in `WhatIfPanel`. `ssAdjustmentFactor` is already imported in `ResultsStep.jsx`; import it in `WhatIfPanel.jsx` too.
 
 ---
 
 ## Part 5: Comparison Output
 
 ### Verdict row
-Two side-by-side boxes using existing `.metric-box` class pattern:
+Two side-by-side boxes using existing `.metric-box` class pattern.
 
-```jsx
-const myVerdict  = verdictConfig(results);
-const wiVerdict  = verdictConfig(wiResults);
-```
+Use `results.verdict` and `wiResults.verdict` directly — both are already the verdict objects returned by `runProjection()`. Follow the same pattern as the existing verdict banner in `ResultsStep.jsx`.
 
 - Left box label: `"MY PLAN"` (muted)
 - Right box label: `"WHAT IF"` (blue — `#3b82f6`)
-- Each shows: verdict label (large, colored per verdict), and portfolio runway note (e.g., `"Portfolio lasts to age 91"` or `"Portfolio outlasts life expectancy"`)
+- Each shows: verdict label (large, colored per verdict), and portfolio runway note
 
-**Portfolio runway note logic:**
-- If `portfolioDepletionAge >= lifeExpectancy`: `"Portfolio outlasts life expectancy"`
-- Else: `` `Portfolio runs to age ${portfolioDepletionAge}` ``
-
-`portfolioDepletionAge` is already returned by `runProjection()`.
+**Portfolio runway note logic** (using `runOutYear` from results object):
+- If `runOutYear === null`: `"Portfolio outlasts life expectancy"` — `null` means the portfolio never depleted within the projection horizon
+- Else: `` `Portfolio runs to age ${runOutYear}` ``
 
 ### Chart: two-line portfolio comparison
 Renders a Recharts `ComposedChart` (same as existing chart) showing both trajectories on the same axes.
@@ -303,18 +298,29 @@ const chartData = allAges.map(age => ({
 ### Metric comparison table
 Four rows. Each row: metric name | My Plan value | What If value | Change (delta, color-coded).
 
+**Withdrawal rate** is not returned by `runProjection()` — compute it locally in `WhatIfPanel` the same way `ResultsStep.jsx` does:
+```js
+const myWithdrawalRate = results.portfolioAtRetirement > 0 && results.monthlyGap > 0
+  ? (results.monthlyGap * 12) / results.portfolioAtRetirement * 100
+  : 0;
+const wiWithdrawalRate = wiResults.portfolioAtRetirement > 0 && wiResults.monthlyGap > 0
+  ? (wiResults.monthlyGap * 12) / wiResults.portfolioAtRetirement * 100
+  : 0;
+```
+
 | Row | My Plan value | What If value | Change color rule |
 |---|---|---|---|
 | Portfolio at retirement | `$${(results.portfolioAtRetirement/1e6).toFixed(2)}M` (or `$${Math.round(results.portfolioAtRetirement/1000)}K` if < $1M) | same format | green if whatIf ≥ myPlan, red if worse |
-| Monthly income | `$${results.monthlyIncome.toLocaleString()}/mo` | same | green if ≥, red if < |
-| Withdrawal rate | `${results.withdrawalRate.toFixed(1)}%` | same | green if ≤, red if > (lower is better) |
-| Portfolio runs to | `age ${portfolioDepletionAge}` or `"100+"` | same | green if ≥, red if < |
+| Monthly income | `$${results.netMonthlyIncome.toLocaleString()}/mo` | `$${wiResults.netMonthlyIncome.toLocaleString()}/mo` | green if ≥, red if < |
+| Withdrawal rate | `${myWithdrawalRate.toFixed(1)}%` | `${wiWithdrawalRate.toFixed(1)}%` | green if ≤, red if > (lower is better) |
+| Portfolio runs to | `runOutYear === null ? "100+" : String(runOutYear)` | same with `wiResults.runOutYear` | green if whatIf is null (never depletes) or whatIf ≥ myPlan; red if myPlan is null and whatIf is not; red if both numbers and whatIf < myPlan |
 
 **Delta format:**
 - Dollar amounts: `+$X` / `−$X` (use `−` not `-` for display)
 - Percentages: `+X.X%` / `−X.X%`
 - Ages: `+X yrs` / `−X yrs`
 - If delta is 0: show `—` in muted color
+- **"Portfolio runs to" delta special case:** If either `runOutYear` is `null`, show `—` in the Change column (can't subtract "never" from a number). The color rule still applies: if `wiResults.runOutYear === null`, color is green; if `results.runOutYear === null && wiResults.runOutYear !== null`, color is red.
 
 **Table header row:** `""` | `"My Plan"` | `"What If"` | `"Change"` — all right-aligned except first column.
 
@@ -373,4 +379,5 @@ Four rows. Each row: metric name | My Plan value | What If value | Change (delta
 - **Proportional scaling for spending and contributions** — Exposing a single total is far simpler than 6 spending fields or 8 contribution fields. Proportional scaling preserves the user's intended mix.
 - **No Monte Carlo for What If** — The deterministic metrics (portfolio at retirement, monthly income, withdrawal rate, depletion age) are sufficient for comparison. MC adds computation with marginal benefit here; can be added later.
 - **Employer match excluded from contributions** — The match is employer-controlled, not a decision variable. Scaling it would give misleading results.
+- **`bridgeHealthcare` not scaled by `spendingScale`** — Pre-Medicare healthcare (bridge healthcare cost before age 65) stays fixed when the user adjusts monthly spending. This is an accepted simplification: bridge healthcare is a distinct cost category tied to insurance products, not discretionary spending. The part-time income and retirement age variables already let users model the pre-retirement period. A note is not needed on the UI — this edge case is minor enough that most users won't notice.
 - **Part-time end age not exposed** — Keep the input count to 6. The end age from the main plan carries over. A note on the field tells the user this.
