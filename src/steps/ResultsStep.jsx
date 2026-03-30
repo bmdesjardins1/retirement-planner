@@ -160,12 +160,14 @@ export default function ResultsStep() {
     <div>
       <div className="results-tabs">
         <button
+          type="button"
           className={`results-tab${activeTab === 'myplan' ? ' results-tab--active' : ''}`}
           onClick={() => setActiveTab('myplan')}
         >
           My Plan
         </button>
         <button
+          type="button"
           className={`results-tab${activeTab === 'whatif' ? ' results-tab--active' : ''}`}
           onClick={() => setActiveTab('whatif')}
         >
