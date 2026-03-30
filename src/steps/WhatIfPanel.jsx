@@ -47,18 +47,14 @@ export default function WhatIfPanel() {
   const spendingScale = baseSpending > 0 ? wiMonthlySpending / baseSpending : 1;
   const contribScale  = baseAnnualContribs > 0 ? wiAnnualContribs / baseAnnualContribs : 1;
 
-  // Adjusted SS for what-if claim ages
-  const wiAdjustedSS1 = ss1 * ssAdjustmentFactor(wiSs1ClaimAge);
-  const wiAdjustedSS2 = ss2 * ssAdjustmentFactor(wiSs2ClaimAge);
-
   // Alternate projection
   const wiResults = useMemo(() => runProjection({
     age, lifeExpectancy,
     retirementAge: wiRetirementAge,
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
     hasSpouse,
-    ss1: wiAdjustedSS1,
-    ss2: wiAdjustedSS2,
+    ss1: ss1 * ssAdjustmentFactor(wiSs1ClaimAge),
+    ss2: ss2 * ssAdjustmentFactor(wiSs2ClaimAge),
     trad401k: (hasTrad401k ? trad401k : 0) + (hasSpouse && spouseHasTrad401k ? spouseTrad401k : 0),
     roth401k: (hasRoth401k ? roth401k : 0) + (hasSpouse && spouseHasRoth401k ? spouseRoth401k : 0),
     tradIRA:  (hasTradIRA  ? tradIRA  : 0) + (hasSpouse && spouseHasTradIRA  ? spouseTradIRA  : 0),
