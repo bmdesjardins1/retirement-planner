@@ -159,8 +159,10 @@ export default function WhatIfPanel() {
     return `${sign}${Math.abs(delta).toFixed(1)}%`;
   };
 
-  const fmtPortfolio = (v) =>
-    v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
+  const fmtPortfolio = (v) => {
+    if (v <= 0) return '$0';
+    return v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
+  };
 
   return (
     <div className="whatif-layout">
@@ -240,7 +242,7 @@ export default function WhatIfPanel() {
 
         {/* Verdict row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-          <div className="metric-box">
+          <div className="metric-box" style={{ borderColor: '#22c55e44' }}>
             <div className="metric-box-label" style={{ color: '#475569' }}>MY PLAN</div>
             <div className={`metric-box-value ${results.verdict.colorClass}`}>
               {results.verdict.label}
