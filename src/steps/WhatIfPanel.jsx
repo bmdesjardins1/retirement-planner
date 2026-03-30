@@ -4,6 +4,10 @@ import Card from "../components/Card";
 import FieldInput from "../components/FieldInput";
 import { runProjection } from "../utils/calc";
 import { ssAdjustmentFactor } from "../utils/ssUtils";
+import {
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
 export default function WhatIfPanel() {
   const {
@@ -110,6 +114,54 @@ export default function WhatIfPanel() {
     stateInfo, planningToMove, moveAge, retirementStateInfo,
   ]);
 
+  // Withdrawal rates (not returned by runProjection — computed locally)
+  const myWithdrawalRate = results.portfolioAtRetirement > 0 && results.monthlyGap > 0
+    ? (results.monthlyGap * 12) / results.portfolioAtRetirement * 100
+    : 0;
+  const wiWithdrawalRate = wiResults.portfolioAtRetirement > 0 && wiResults.monthlyGap > 0
+    ? (wiResults.monthlyGap * 12) / wiResults.portfolioAtRetirement * 100
+    : 0;
+
+  // Portfolio runway display — runOutYear is null when portfolio never depletes
+  const myRunsTo  = results.runOutYear  === null ? '100+' : String(results.runOutYear);
+  const wiRunsTo  = wiResults.runOutYear === null ? '100+' : String(wiResults.runOutYear);
+
+  // Two-line chart: merge yearsData by age
+  const allAges = [...new Set([
+    ...results.yearsData.map(d => d.age),
+    ...wiResults.yearsData.map(d => d.age),
+  ])].sort((a, b) => a - b);
+
+  const compChartData = allAges.map(a => ({
+    age: a,
+    myPlan: results.yearsData.find(d => d.age === a)?.portfolio  ?? null,
+    whatIf: wiResults.yearsData.find(d => d.age === a)?.portfolio ?? null,
+  }));
+
+  // Tooltip style (matches rest of app)
+  const tooltipStyle = { background: '#0f172a', border: '1px solid rgba(51,65,85,0.8)', borderRadius: 10, fontSize: 12 };
+
+  // Delta helpers
+  const fmtDollar = (delta) => {
+    if (delta === 0) return '—';
+    const sign = delta > 0 ? '+' : '−';
+    const abs = Math.abs(delta);
+    return abs >= 1e6
+      ? `${sign}$${(abs / 1e6).toFixed(2)}M`
+      : abs >= 1000
+      ? `${sign}$${Math.round(abs / 1000)}K`
+      : `${sign}$${Math.round(abs).toLocaleString()}`;
+  };
+
+  const fmtPct = (delta) => {
+    if (Math.abs(delta) < 0.05) return '—';
+    const sign = delta > 0 ? '+' : '−';
+    return `${sign}${Math.abs(delta).toFixed(1)}%`;
+  };
+
+  const fmtPortfolio = (v) =>
+    v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
+
   return (
     <div className="whatif-layout">
       {/* Left column: input panel */}
@@ -183,11 +235,153 @@ export default function WhatIfPanel() {
         />
       </Card>
 
-      {/* Right column: comparison output — completed in Task 4 */}
+      {/* Right column: comparison output */}
       <div>
-        <div style={{ color: '#64748b', fontSize: 13, padding: 16 }}>
-          Comparison output loading…
+
+        {/* Verdict row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          <div className="metric-box">
+            <div className="metric-box-label" style={{ color: '#475569' }}>MY PLAN</div>
+            <div className={`metric-box-value ${results.verdict.colorClass}`}>
+              {results.verdict.label}
+            </div>
+            <div className="metric-box-note">
+              {results.runOutYear === null
+                ? 'Portfolio outlasts life expectancy'
+                : `Portfolio runs to age ${results.runOutYear}`}
+            </div>
+          </div>
+          <div className="metric-box" style={{ borderColor: '#3b82f644' }}>
+            <div className="metric-box-label" style={{ color: '#3b82f6' }}>WHAT IF</div>
+            <div className={`metric-box-value ${wiResults.verdict.colorClass}`}>
+              {wiResults.verdict.label}
+            </div>
+            <div className="metric-box-note">
+              {wiResults.runOutYear === null
+                ? 'Portfolio outlasts life expectancy'
+                : `Portfolio runs to age ${wiResults.runOutYear}`}
+            </div>
+          </div>
         </div>
+
+        {/* Two-line portfolio chart */}
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>Portfolio over time</div>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={compChartData} margin={{ top: 4, right: 8, bottom: 32, left: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
+              <XAxis
+                dataKey="age"
+                tick={{ fill: '#475569', fontSize: 11 }}
+                label={{ value: 'Age', position: 'insideBottom', offset: -12, fill: '#475569', fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fill: '#475569', fontSize: 11 }}
+                tickFormatter={v => v >= 1000000 ? `$${(v / 1000000).toFixed(1)}M` : `$${(v / 1000).toFixed(0)}k`}
+                width={60}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={v => `Age ${v}`}
+                formatter={(v, n) => v === null ? ['—', n] : [`$${v.toLocaleString()}`, n]}
+              />
+              <Legend verticalAlign="top" height={32} wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+              <Line dataKey="myPlan" name="My Plan" stroke="#22c55e" strokeWidth={2} dot={false} connectNulls={false} />
+              <Line dataKey="whatIf" name="What If" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 3" connectNulls={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Metric comparison table */}
+        <Card>
+          <table className="whatif-metric-table">
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left' }}></th>
+                <th>My Plan</th>
+                <th>What If</th>
+                <th>Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Portfolio at retirement */}
+              {(() => {
+                const my = results.portfolioAtRetirement;
+                const wi = wiResults.portfolioAtRetirement;
+                const delta = wi - my;
+                return (
+                  <tr>
+                    <td>Portfolio at retirement</td>
+                    <td>{fmtPortfolio(my)}</td>
+                    <td>{fmtPortfolio(wi)}</td>
+                    <td className={delta > 0 ? 'wi-better' : delta < 0 ? 'wi-worse' : 'wi-same'}>
+                      {fmtDollar(delta)}
+                    </td>
+                  </tr>
+                );
+              })()}
+              {/* Monthly income */}
+              {(() => {
+                const my = results.netMonthlyIncome;
+                const wi = wiResults.netMonthlyIncome;
+                const delta = wi - my;
+                return (
+                  <tr>
+                    <td>Monthly income</td>
+                    <td>${my.toLocaleString()}/mo</td>
+                    <td>${wi.toLocaleString()}/mo</td>
+                    <td className={delta > 0 ? 'wi-better' : delta < 0 ? 'wi-worse' : 'wi-same'}>
+                      {fmtDollar(delta)}
+                    </td>
+                  </tr>
+                );
+              })()}
+              {/* Withdrawal rate */}
+              {(() => {
+                const delta = wiWithdrawalRate - myWithdrawalRate;
+                return (
+                  <tr>
+                    <td>Withdrawal rate</td>
+                    <td>{myWithdrawalRate.toFixed(1)}%</td>
+                    <td>{wiWithdrawalRate.toFixed(1)}%</td>
+                    {/* lower is better — invert color */}
+                    <td className={delta < 0 ? 'wi-better' : delta > 0 ? 'wi-worse' : 'wi-same'}>
+                      {fmtPct(delta)}
+                    </td>
+                  </tr>
+                );
+              })()}
+              {/* Portfolio runs to */}
+              {(() => {
+                // null = never depletes; treat as better than any finite age
+                const myNull = results.runOutYear === null;
+                const wiNull = wiResults.runOutYear === null;
+                let changeClass = 'wi-same';
+                if (wiNull && !myNull) changeClass = 'wi-better';
+                else if (!wiNull && myNull) changeClass = 'wi-worse';
+                else if (!wiNull && !myNull) {
+                  if (wiResults.runOutYear > results.runOutYear) changeClass = 'wi-better';
+                  else if (wiResults.runOutYear < results.runOutYear) changeClass = 'wi-worse';
+                }
+                // Show '—' in delta when either is null (can't subtract "never")
+                const showDelta = !myNull && !wiNull;
+                const delta = showDelta ? wiResults.runOutYear - results.runOutYear : null;
+                const deltaStr = showDelta
+                  ? (delta === 0 ? '—' : `${delta > 0 ? '+' : '−'}${Math.abs(delta)} yrs`)
+                  : '—';
+                return (
+                  <tr>
+                    <td>Portfolio runs to</td>
+                    <td>{myRunsTo}</td>
+                    <td>{wiRunsTo}</td>
+                    <td className={changeClass}>{deltaStr}</td>
+                  </tr>
+                );
+              })()}
+            </tbody>
+          </table>
+        </Card>
+
       </div>
     </div>
   );
