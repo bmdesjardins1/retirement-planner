@@ -29,8 +29,9 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - calc.js model accuracy audit (PR #10, 2026-03-24) — MAGI fix, dead code removal, simplification comments
 - Site design cleanup (PR #14 input steps, PR #15 results page, 2026-03-25)
 - Monte Carlo simulation (PR #16 + band fix PR #17, 2026-03-25) — confidence band chart, volatility toggle, failure stats, sequence-of-returns explainer
+- Tax & Cost Summary redesign + SS breakeven (PR #18, 2026-03-29) — compact tax snapshot, side-by-side planning insights, SS breakeven callout per person
 
-**Resume point:** Tax & Cost Summary redesign + SS breakeven — spec written (`docs/superpowers/specs/2026-03-26-tax-summary-redesign-and-ss-breakeven.md`), spec review ran but found issues. Do NOT re-brainstorm. Fix spec issues (see `memory/project_tax_ss_breakeven.md`), re-run spec reviewer, get user sign-off, then invoke `superpowers:writing-plans`.
+**Resume point:** Tax & Cost Summary redesign + SS breakeven shipped (PR #18, 2026-03-29). Next: Mortgage payoff modeling. Invoke `superpowers:brainstorming` to kick it off.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
