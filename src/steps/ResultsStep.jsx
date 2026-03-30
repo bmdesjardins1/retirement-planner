@@ -8,6 +8,7 @@ import Card from "../components/Card";
 import InfoTooltip from "../components/Tooltip";
 import { runMonteCarlo } from "../utils/monteCarlo";
 import { ssBreakeven } from "../utils/ssUtils";
+import WhatIfPanel from "./WhatIfPanel";
 
 const tooltipStyle = { background: "#0f172a", border: "1px solid rgba(51,65,85,0.8)", borderRadius: 10, fontSize: 12 };
 
@@ -24,6 +25,7 @@ export default function ResultsStep() {
     planningToMove, moveAge, retirementState, retirementStateInfo,
     ss1, ss2, ss1ClaimAge, ss2ClaimAge,
   } = usePlanner();
+  const [activeTab, setActiveTab] = useState('myplan');
   const { verdict } = results;
   const gapPositive = results.monthlyGap > 0;
   const STD_DEV_MAP = { low: 5, medium: 10, high: 17 };
@@ -156,7 +158,24 @@ export default function ResultsStep() {
 
   return (
     <div>
-      {/* Verdict Banner */}
+      <div className="results-tabs">
+        <button
+          className={`results-tab${activeTab === 'myplan' ? ' results-tab--active' : ''}`}
+          onClick={() => setActiveTab('myplan')}
+        >
+          My Plan
+        </button>
+        <button
+          className={`results-tab${activeTab === 'whatif' ? ' results-tab--active' : ''}`}
+          onClick={() => setActiveTab('whatif')}
+        >
+          What If?
+        </button>
+      </div>
+
+      {activeTab === 'myplan' && (
+        <>
+          {/* Verdict Banner */}
       <div className={`verdict-banner ${verdict.bannerClass}`}>
         <div className="verdict-icon">
           <span style={{ color: "currentColor", fontSize: 20 }}>●</span>
@@ -628,6 +647,10 @@ export default function ResultsStep() {
           ⚠ This tool provides estimates for planning purposes only and is not financial advice. Consult a certified financial planner (CFP) for personalized guidance. Tax rates, Social Security rules, and cost of living figures are approximate and subject to change.
         </p>
       </Card>
+        </>
+      )}
+
+      {activeTab === 'whatif' && <WhatIfPanel />}
     </div>
   );
 }
