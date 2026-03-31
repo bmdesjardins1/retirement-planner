@@ -32,7 +32,7 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - Tax & Cost Summary redesign + SS breakeven (PR #18, 2026-03-29) — compact tax snapshot, side-by-side planning insights, SS breakeven callout per person
 - What If scenario comparisons (PR #19, 2026-03-30) — My Plan / What If tab toggle, 6 adjustable variables, verdict + chart + metric table comparison
 
-**Resume point:** What If scenarios shipped (PR #19, 2026-03-30). Phase 2 complete. Next: Phase 3 features (exportable results, onboarding tooltips) or any stretch Phase 2 items. Invoke `superpowers:brainstorming` to kick off the next feature.
+**Resume point:** Strategic direction set 2026-03-31. Next: Track A calculation fixes (SS COLA, early withdrawal penalty, Medicare Part B base premium, home appreciation, state cap gains tax). Invoke `superpowers:brainstorming` with "Track A calculation fixes" to spec the work. Audit findings and implementation notes are in `memory/project_calc_audit.md` — do NOT re-audit.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
