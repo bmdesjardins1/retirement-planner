@@ -11,6 +11,7 @@ export default function IncomeStep() {
     ss2, setSs2,
     ss1ClaimAge, setSs1ClaimAge,
     ss2ClaimAge, setSs2ClaimAge,
+    ssCola, setSsCola,
     adjustedSS1, adjustedSS2,
     pension, setPension,
     pensionCOLA, setPensionCOLA,
@@ -56,6 +57,14 @@ export default function IncomeStep() {
                 note={claimPreviewNote(ss2ClaimAge, ss2, adjustedSS2)}
               />
             </>
+          )}
+          {ss1 > 0 && (
+            <FieldInput
+              label="SS Annual COLA Rate"
+              value={ssCola} min={0} max={4} step={0.1}
+              onChange={setSsCola} suffix="%"
+              note="SSA historical average ~2.5%/yr. Use 0% to model no COLA."
+            />
           )}
         </Card>
 

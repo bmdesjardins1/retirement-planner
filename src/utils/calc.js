@@ -56,6 +56,7 @@ export function runProjection(inputs) {
     stateInfo,
     moveAge = Infinity, retirementStateInfo = stateInfo,
     survivorFactor = 1.0,
+    ssCola = 2.5,
   } = inputs;
 
   const col = stateInfo.costOfLivingIndex / 100;
@@ -85,41 +86,42 @@ export function runProjection(inputs) {
   const retCol = retirementStateInfo.costOfLivingIndex / 100;
   const retMonthlyPropertyTax = homeOwned ? (homeValue * retirementStateInfo.avgPropertyTaxRate) / 12 : 0;
 
-  const ssMonthly = ss1 + (hasSpouse ? ss2 : 0);
-  const ssTaxableMonthly = stateInfo.hasSSIncomeTax ? ssMonthly : 0;
+  const ssMonthly        = ss1 + (hasSpouse ? ss2 : 0);
+  const ssMonthlyTaxable = stateInfo.hasSSIncomeTax ? ssMonthly : 0;
   const monthlyPropertyTax = homeOwned ? (homeValue * stateInfo.avgPropertyTaxRate) / 12 : 0;
 
   // Pension extracted so it can inflate independently (pensionCOLA toggle).
   const pensionStateTax   = pension * stateInfo.incomeTax;
   const pensionNetMonthly = pension - pensionStateTax;
 
-  // Non-pension income (SS + part-time + rental) — always inflates with generalFactor
-  const nonPensionGrossWithPT    = ssMonthly + partTimeIncome + rentalIncome;
-  const nonPensionTaxWithPT      = (partTimeIncome + rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const nonPensionNetWithPT      = nonPensionGrossWithPT - nonPensionTaxWithPT;
+  // Non-SS non-pension income (part-time + rental) — inflates with generalFactor.
+  // SS is handled separately inside the drawdown loop with its own COLA rate.
+  const nonSSNonPensionTaxWithPT    = (partTimeIncome + rentalIncome) * stateInfo.incomeTax;
+  const nonSSNonPensionNetWithPT    = (partTimeIncome + rentalIncome) - nonSSNonPensionTaxWithPT;
 
-  const nonPensionGrossWithoutPT = ssMonthly + rentalIncome;
-  const nonPensionTaxWithoutPT   = (rentalIncome + ssTaxableMonthly) * stateInfo.incomeTax;
-  const nonPensionNetWithoutPT   = nonPensionGrossWithoutPT - nonPensionTaxWithoutPT;
+  const nonSSNonPensionTaxWithoutPT = rentalIncome * stateInfo.incomeTax;
+  const nonSSNonPensionNetWithoutPT = rentalIncome - nonSSNonPensionTaxWithoutPT;
 
-  // Non-SS ordinary income — used for federal tax in real terms.
+  // Non-SS ordinary income — used for federal tax gross-up in real terms.
   // Pension is always its year-0 value in real terms (whether or not it has COLA).
   const nonSSWithPT    = pension + spousePension + partTimeIncome + rentalIncome;
   const nonSSWithoutPT = pension + spousePension + rentalIncome;
 
-  // Retirement state income variants (post-move, non-survivor — ssMonthlyAlone not yet defined)
-  const retSSTaxableMonthly       = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
-  const retNonPensionNetWithPT    = (ssMonthly + partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome + retSSTaxableMonthly) * retirementStateInfo.incomeTax;
-  const retNonPensionNetWithoutPT = (ssMonthly + rentalIncome) - (rentalIncome + retSSTaxableMonthly) * retirementStateInfo.incomeTax;
-  const retPensionNetMonthly      = pension - pension * retirementStateInfo.incomeTax;
+  // Retirement state income variants (post-move, non-survivor)
+  const retNonSSNonPensionNetWithPT    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
+  const retNonSSNonPensionNetWithoutPT = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
+  const retSSMonthlyTaxable            = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
+  const retPensionNetMonthly           = pension - pension * retirementStateInfo.incomeTax;
 
   const spousePensionStateTax      = spousePension * stateInfo.incomeTax;
   const spousePensionNetMonthly    = spousePension - spousePensionStateTax;
   const retSpousePensionNetMonthly = spousePension - spousePension * retirementStateInfo.incomeTax;
 
-  // For summary cards (year-0, with part-time)
-  const netMonthlyIncome = nonPensionNetWithPT + pensionNetMonthly + spousePensionNetMonthly;
-  const stateTaxMonthly  = nonPensionTaxWithPT + pensionStateTax   + spousePensionStateTax;
+  // For summary cards (year-0, with part-time) — SS at year-0 value (COLA not applied to summary)
+  const ssStateTaxMonthly = ssMonthlyTaxable * stateInfo.incomeTax;
+  const ssNetMonthly      = ssMonthly - ssStateTaxMonthly;
+  const netMonthlyIncome  = ssNetMonthly + nonSSNonPensionNetWithPT + pensionNetMonthly + spousePensionNetMonthly;
+  const stateTaxMonthly   = ssStateTaxMonthly + nonSSNonPensionTaxWithPT + pensionStateTax + spousePensionStateTax;
 
   const adjustedExpenses = (baseHousingNeed + baseNonHousingNeed + baseHealthcareNeed);
   const totalMonthlyNeed = adjustedExpenses + monthlyPropertyTax;
@@ -189,21 +191,15 @@ export function runProjection(inputs) {
   // Survivor-phase expense and income bases (housing split for payoff logic)
   const baseHousingNeedAlone    = housing * col * 0.6;
   const baseNonHousingNeedAlone = (food + transport + leisure + other) * col * 0.6;
-  const ssMonthlyAlone             = Math.max(ss1, ss2);
-  const ssTaxableAlone             = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
+  const ssMonthlyAlone          = Math.max(ss1, ss2);
+  const ssMonthlyTaxableAlone   = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;  // new
 
-  const nonPensionGrossWithPTAlone    = ssMonthlyAlone + partTimeIncome + rentalIncome;
-  const nonPensionTaxWithPTAlone      = (partTimeIncome + rentalIncome + ssTaxableAlone) * stateInfo.incomeTax;
-  const nonPensionNetWithPTAlone      = nonPensionGrossWithPTAlone - nonPensionTaxWithPTAlone;
+  const nonSSNonPensionNetWithPTAlone    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * stateInfo.incomeTax;
+  const nonSSNonPensionNetWithoutPTAlone = rentalIncome - rentalIncome * stateInfo.incomeTax;
 
-  const nonPensionGrossWithoutPTAlone = ssMonthlyAlone + rentalIncome;
-  const nonPensionTaxWithoutPTAlone   = (rentalIncome + ssTaxableAlone) * stateInfo.incomeTax;
-  const nonPensionNetWithoutPTAlone   = nonPensionGrossWithoutPTAlone - nonPensionTaxWithoutPTAlone;
-
-  // Retirement state survivor variants (ssMonthlyAlone now defined)
-  const retSSTaxableAlone              = retirementStateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
-  const retNonPensionNetWithPTAlone    = (ssMonthlyAlone + partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome + retSSTaxableAlone) * retirementStateInfo.incomeTax;
-  const retNonPensionNetWithoutPTAlone = (ssMonthlyAlone + rentalIncome) - (rentalIncome + retSSTaxableAlone) * retirementStateInfo.incomeTax;
+  // Retirement state survivor variants
+  const retNonSSNonPensionNetWithPTAlone    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
+  const retNonSSNonPensionNetWithoutPTAlone = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
 
   // ── Phase 2: Drawdown (retirementAge → effectiveLifeExpectancy + buffer) ────
   // For combined projections the household needs money until the last survivor dies.
@@ -230,11 +226,9 @@ export function runProjection(inputs) {
     // Work in real (year-0 dollar) terms — equivalent to inflating brackets each year.
     // SS provisional income thresholds ($32K/$44K married; $25K/$34K single) inside
     // estimateFederalTax are intentionally left as frozen nominal values (unchanged since 1984).
-    const realSS       = ssMonthly * 12;
     // Not adjusted for survivor phase — pension and rental income don't necessarily
     // halve after one spouse's death. The overstatement of income and the overstatement
-    // of taxes roughly cancel; accepted simplification. activeRealSS does correctly
-    // drop to ssMonthlyAlone*12 in survivor mode.
+    // of taxes roughly cancel; accepted simplification.
     const realOrdinary = (ptEnded ? nonSSWithoutPT : nonSSWithPT) * 12;
 
     // Switch to survivor mode after the first spouse's death
@@ -255,13 +249,26 @@ export function runProjection(inputs) {
     const activeBaseNonHousingNeed = (food + transport + leisure + other) * activeCol * activeSurvFactor;
     const activeBaseHousingNeed    = housing * activeCol * activeSurvFactor;
 
-    // Income bases: select from pre-computed 4 variants (survivor × state)
-    const activeNonPensionNetWithPT    = isSurvivor
-      ? (hasMoved ? retNonPensionNetWithPTAlone    : nonPensionNetWithPTAlone)
-      : (hasMoved ? retNonPensionNetWithPT         : nonPensionNetWithPT);
-    const activeNonPensionNetWithoutPT = isSurvivor
-      ? (hasMoved ? retNonPensionNetWithoutPTAlone : nonPensionNetWithoutPTAlone)
-      : (hasMoved ? retNonPensionNetWithoutPT      : nonPensionNetWithoutPT);
+    const activeMarried      = isSurvivor ? false : hasSpouse;
+    const activeStateTaxRate = hasMoved ? retirementStateInfo.incomeTax : stateInfo.incomeTax;
+
+    // Income bases: select from pre-computed variants (survivor × state × PT-ended)
+    const activeNonSSNonPensionNetWithPT    = isSurvivor
+      ? (hasMoved ? retNonSSNonPensionNetWithPTAlone    : nonSSNonPensionNetWithPTAlone)
+      : (hasMoved ? retNonSSNonPensionNetWithPT         : nonSSNonPensionNetWithPT);
+    const activeNonSSNonPensionNetWithoutPT = isSurvivor
+      ? (hasMoved ? retNonSSNonPensionNetWithoutPTAlone : nonSSNonPensionNetWithoutPTAlone)
+      : (hasMoved ? retNonSSNonPensionNetWithoutPT      : nonSSNonPensionNetWithoutPT);
+    const activeNonSSNonPensionNet = ptEnded ? activeNonSSNonPensionNetWithoutPT : activeNonSSNonPensionNetWithPT;
+
+    // SS: survivor-adjusted base, then COLA-compounded
+    const activeSSMonthly        = isSurvivor ? ssMonthlyAlone        : ssMonthly;
+    const activeSSTaxableMonthly = isSurvivor ? ssMonthlyTaxableAlone : ssMonthlyTaxable;
+    const ssColaFactor  = Math.pow(1 + ssCola / 100, y);
+    const ssGrossAnnual = activeSSMonthly * 12 * ssColaFactor;
+    const ssStateTax    = activeSSTaxableMonthly * 12 * ssColaFactor * activeStateTaxRate;
+    const ssNetAnnual   = ssGrossAnnual - ssStateTax;
+
     // Primary pension: reduced by survivorPct when primary has died (isSurvivor && primaryDiesFirst)
     const activePrimaryPensionNet = (isSurvivor && primaryDiesFirst)
       ? (hasMoved ? retPensionNetMonthly : pensionNetMonthly) * (pensionSurvivorPct / 100)
@@ -271,9 +278,6 @@ export function runProjection(inputs) {
       : (isSurvivor && !primaryDiesFirst)
       ? (hasMoved ? retSpousePensionNetMonthly : spousePensionNetMonthly) * (spousePensionSurvivorPct / 100)
       : (hasMoved ? retSpousePensionNetMonthly : spousePensionNetMonthly);
-    const activeRealSS                 = isSurvivor ? ssMonthlyAlone * 12 : realSS;
-    const activeMarried                = isSurvivor ? false               : hasSpouse;
-    const activeStateTaxRate           = hasMoved ? retirementStateInfo.incomeTax : stateInfo.incomeTax;
 
     // Mortgage payoff: housing drops to $0 for owners after payoff age
     const housePaid = housingType === "own" && ageInYear >= mortgagePayoffAge;
@@ -298,9 +302,12 @@ export function runProjection(inputs) {
     //   1. Gross SS used instead of taxable SS portion (slightly conservative)
     //   2. realOrdinary is NOT adjusted for survivor phase — pension/rental don't
     //      necessarily halve after one spouse's death, so this is a reasonable
-    //      approximation. activeRealSS does correctly drop to ssMonthlyAlone*12.
+    //      approximation.
+    // realSSAnnual: SS in real (year-0) terms — divides out generalFactor so IRMAA
+    // brackets stay stable even when ssCola != inflation.
+    const realSSAnnual = (activeSSMonthly * 12 * ssColaFactor) / generalFactor;
     const irmaaApplies = ageInYear >= 65;
-    const irmaaMAGI = irmaaApplies ? activeRealSS + realOrdinary : 0;
+    const irmaaMAGI = irmaaApplies ? realSSAnnual + realOrdinary : 0;
     const irmaaSurchargePerPerson = irmaaApplies
       ? getIrmaaSurcharge(irmaaMAGI, activeMarried)
       : 0;
@@ -319,12 +326,11 @@ export function runProjection(inputs) {
       activeBaseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC +
       irmaaAnnual;
-    const baseNonPensionNet = ptEnded ? activeNonPensionNetWithoutPT : activeNonPensionNetWithPT;
     // Each pension's COLA applies independently
     const pensionContrib =
       (pensionCOLA      ? activePrimaryPensionNet * 12 * generalFactor : activePrimaryPensionNet * 12) +
       (spousePensionCOLA ? activeSpousePensionNet  * 12 * generalFactor : activeSpousePensionNet  * 12);
-    const yearlyIncome = (baseNonPensionNet * 12 * generalFactor) + pensionContrib;
+    const yearlyIncome = ssNetAnnual + (activeNonSSNonPensionNet * 12 * generalFactor) + pensionContrib;
 
     // Estimate portfolio withdrawal needed before accounting for federal tax
     const preTaxGap = Math.max(yearlyNeed - yearlyIncome, 0);
@@ -379,12 +385,12 @@ export function runProjection(inputs) {
     const realCapGains     = (taxableSpend * 0.60) / generalFactor;
     const realRmdOrdinary  = realOrdinary + rmdExcess / generalFactor;
     const { tax: realFed1 } = estimateFederalTax({
-      ssAnnual: activeRealSS, ordinaryIncome: realRmdOrdinary,
+      ssAnnual: realSSAnnual, ordinaryIncome: realRmdOrdinary,
       withdrawalEstimate: realTradGross, capitalGains: realCapGains,
       married: activeMarried, age: ageInYear,
     });
     const { tax: realFed2, taxableSS } = estimateFederalTax({
-      ssAnnual: activeRealSS, ordinaryIncome: realRmdOrdinary,
+      ssAnnual: realSSAnnual, ordinaryIncome: realRmdOrdinary,
       withdrawalEstimate: realTradGross + realFed1, capitalGains: realCapGains,
       married: activeMarried, age: ageInYear,
     });

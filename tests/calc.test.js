@@ -19,6 +19,7 @@ const BASE = {
   longTermCare: 0, ltcStartAge: 80,
   stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0.009, costOfLivingIndex: 100 },
   survivorFactor: 1.0,
+  ssCola: 0,
 };
 
 describe('runProjection', () => {
@@ -105,6 +106,7 @@ const P2_BASE = {
   longTermCare: 0, ltcStartAge: 80,
   stateInfo: { incomeTax: 0.05, hasSSIncomeTax: false, avgPropertyTaxRate: 0.009, costOfLivingIndex: 100 },
   survivorFactor: 1.0,
+  ssCola: 0,
 };
 
 describe('Phase 2: account type bucket tracking', () => {
@@ -149,6 +151,7 @@ describe('SS claiming age via adjustedSS values', () => {
     investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
     survivorFactor: 0.6,
     stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    ssCola: 0,
   };
 
   it('higher SS income leads to smaller monthly withdrawal than lower SS', () => {
@@ -179,6 +182,7 @@ describe('survivor SS transition in combined projection', () => {
     homeValue: 0, homeOwned: false,
     investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
     stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    ssCola: 0,
   };
 
   it('combined projection runway is no longer than a no-drop baseline with same total SS', () => {
@@ -264,6 +268,7 @@ describe('IRMAA surcharges', () => {
     ...BASE,
     ss1: 1200, ss2: 0, pension: 0,
     retirementAge: 65, lifeExpectancy: 85,
+    ssCola: 0,
   };
 
   it('irmaa is 0 below income threshold', () => {
@@ -289,6 +294,7 @@ describe('IRMAA surcharges', () => {
     ss1: 5000, ss2: 0, pension: 4000, pensionCOLA: false,
     retirementAge: 65, lifeExpectancy: 85,
     trad401k: 0, tradIRA: 0, roth401k: 0, rothIRA: 0, taxableBrokerage: 200000,
+    ssCola: 0,
   };
 
   it('irmaa is positive when guaranteed income exceeds threshold', () => {
@@ -374,5 +380,48 @@ describe('Home equity sale', () => {
     const keepResult = runProjection({ ...BASE, homeSaleIntent: 'keep', homeSaleAge: 65 });
     const keepFirst  = keepResult.yearsData.find(d => d.age === 65);
     expect(firstYear.expenses).toBeLessThan(keepFirst.expenses);
+  });
+});
+
+describe('Fix: SS COLA', () => {
+  // SS-only scenario: no pension, partTime, rental; no state SS tax
+  // inflation=3 so generalFactor != 1, but we can isolate SS by using no other income
+  const ssOnlyBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 95,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 95,
+    ss1: 2000, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 2000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
+    housing: 1000, food: 500, healthcare: 300, transport: 200, leisure: 200, other: 100,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+  };
+
+  it('with ssCola=0, SS income in year 10 equals SS income in year 0', () => {
+    const result = runProjection({ ...ssOnlyBase, ssCola: 0 });
+    const drawdown = result.yearsData.filter(d => d.age >= 65);
+    // SS is the only income source; with ssCola=0 and no other income it must be flat
+    expect(drawdown[10].income).toBeCloseTo(drawdown[0].income, -2);
+  });
+
+  it('with ssCola=2.5, SS income in year 10 equals ssMonthly*12*1.025^10', () => {
+    const ssMonthlyVal = 2000;
+    const result = runProjection({ ...ssOnlyBase, ssCola: 2.5 });
+    const drawdown = result.yearsData.filter(d => d.age >= 65);
+    const expected = ssMonthlyVal * 12 * Math.pow(1.025, 10);
+    expect(drawdown[10].income).toBeCloseTo(expected, -2);
+  });
+
+  it('higher ssCola produces longer portfolio runway', () => {
+    const highCola = runProjection({ ...ssOnlyBase, ssCola: 3.0 });
+    const noCola   = runProjection({ ...ssOnlyBase, ssCola: 0 });
+    expect(highCola.runwayYears).toBeGreaterThanOrEqual(noCola.runwayYears);
   });
 });
