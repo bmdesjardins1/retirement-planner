@@ -110,7 +110,6 @@ export function runProjection(inputs) {
   // Retirement state income variants (post-move, non-survivor)
   const retNonSSNonPensionNetWithPT    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
   const retNonSSNonPensionNetWithoutPT = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
-  const retSSMonthlyTaxable            = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
   const retPensionNetMonthly           = pension - pension * retirementStateInfo.incomeTax;
 
   const spousePensionStateTax      = spousePension * stateInfo.incomeTax;
