@@ -437,8 +437,13 @@ export function runProjection(inputs) {
     // Rule 72(t) SEPP distributions can avoid this — not modeled.
     const earlyWithdrawalPenalty = ageInYear < 59.5 ? tradSpend * 0.10 : 0;
 
+    // State tax on capital gains from taxable brokerage (60% of withdrawal assumed gains).
+    // Most states tax capital gains as ordinary income at the state rate.
+    // States with incomeTax=0 contribute $0 automatically.
+    const stateTaxOnCapGains = taxableSpend * 0.60 * activeStateTaxRate;
+
     // --- Step 3: Total portfolio deduction ---
-    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + federalTax + earlyWithdrawalPenalty;
+    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + stateTaxOnCapGains + federalTax + earlyWithdrawalPenalty;
 
     // --- Bucket balance updates ---
     taxableBucket -= taxableSpend;
@@ -448,7 +453,7 @@ export function runProjection(inputs) {
     taxableBucket += rmdExcess;
 
     // Remaining taxes drawn from buckets in same order
-    let taxesLeft = capGainsTax + federalTax;
+    let taxesLeft = capGainsTax + stateTaxOnCapGains + federalTax;
     const taxFromTaxable = Math.min(taxableBucket, taxesLeft);
     taxableBucket -= taxFromTaxable;
     taxesLeft     -= taxFromTaxable;

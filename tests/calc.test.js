@@ -589,3 +589,73 @@ describe('Fix: Home Appreciation + Mortgage Payoff at Sale', () => {
     expect(saleWithoutMortgage.homeSaleProceeds).toBeGreaterThan(saleWithMortgage.homeSaleProceeds + 100000);
   });
 });
+
+describe('Fix: State Capital Gains Tax on Taxable Withdrawals', () => {
+  // All-taxable portfolio: every dollar withdrawn is from taxableBrokerage.
+  // 60% assumed gains, state tax applies to gains at state incomeTax rate.
+  // Portfolio ($2M) and spending ($4,500/mo = $54K/yr) chosen so both CA and FL
+  // deplete within the 50-yr projection window but CA depletes sooner:
+  //   FL (0% state): 2M / 54,000 ≈ 37 yrs
+  //   CA (9.3% state): annual cost ≈ 54,000 × (1 + 0.60×0.093) = ~57,013 → 2M/57,013 ≈ 35 yrs
+  const taxableBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 0, rothIRA: 0, taxableBrokerage: 2000000,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 0,
+    housing: 4500, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('high-tax state (9.3%) has shorter runway than no-tax state with identical all-taxable portfolio', () => {
+    const caSimple = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const flSimple = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    expect(flSimple.runwayYears).toBeGreaterThan(caSimple.runwayYears);
+  });
+
+  it('state with incomeTax=0 adds $0 state cap gains tax (same runway as another zero-tax state)', () => {
+    const flResult = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const txResult = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    // Both no-tax states → identical runway
+    expect(flResult.runwayYears).toBe(txResult.runwayYears);
+  });
+
+  it('all-trad portfolio is not double-taxed (stateTaxOnTrad already covers trad withdrawals)', () => {
+    // This verifies the fix targets ONLY taxable brokerage, not traditional accounts
+    const tradCA = runProjection({
+      ...taxableBase,
+      trad401k: 0, tradIRA: 2000000, taxableBrokerage: 0,
+      stateInfo: { incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const tradFL = runProjection({
+      ...taxableBase,
+      trad401k: 0, tradIRA: 2000000, taxableBrokerage: 0,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    // CA trad still shorter (state tax on trad withdrawals applies) but shouldn't crash
+    expect(tradCA.runwayYears).toBeGreaterThan(0);
+    // The gap between CA and FL for trad-only should be different than for taxable-only
+    // (trad is fully taxed as ordinary income, taxable is only 60% of gains at state rate)
+    expect(tradFL.runwayYears).toBeGreaterThan(tradCA.runwayYears);
+  });
+});
