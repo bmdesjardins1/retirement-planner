@@ -453,7 +453,7 @@ export function runProjection(inputs) {
     taxableBucket += rmdExcess;
 
     // Remaining taxes drawn from buckets in same order
-    let taxesLeft = capGainsTax + stateTaxOnCapGains + federalTax;
+    let taxesLeft = capGainsTax + stateTaxOnCapGains + federalTax + earlyWithdrawalPenalty;
     const taxFromTaxable = Math.min(taxableBucket, taxesLeft);
     taxableBucket -= taxFromTaxable;
     taxesLeft     -= taxFromTaxable;

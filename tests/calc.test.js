@@ -483,6 +483,23 @@ describe('Fix: Early Withdrawal Penalty', () => {
     const late  = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
     expect(early.runOutYear).toBeLessThan(late.runOutYear);
   });
+
+  it('early withdrawal penalty actually reduces portfolio balance (bucket drained, not just display)', () => {
+    // With investmentReturn=0 and inflation=0, portfolio math is exact.
+    // Retire at 55 (penalty applies). After year 1, portfolioBalance should be less than
+    // (startingBalance - yearlyWithdrawal) if the penalty appears only in the display figure,
+    // OR equal to (startingBalance - yearlyWithdrawal) if the penalty correctly drains the bucket.
+    // We verify by comparing portfolioBalance against a no-penalty run of the same real spend.
+    const withPenalty    = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const withoutPenalty = runProjection({ ...penaltyBase, age: 60, retirementAge: 60 });
+
+    // Both start at $1,000,000. Same spending ($24,000/yr). investmentReturn=0, inflation=0.
+    // After year 1: no-penalty portfolio = ~976,000. Penalty portfolio should be lower.
+    const penaltyYear1   = withPenalty.yearsData.find(d => d.age === 55);
+    const noPenaltyYear1 = withoutPenalty.yearsData.find(d => d.age === 60);
+
+    expect(penaltyYear1.portfolio).toBeLessThan(noPenaltyYear1.portfolio);
+  });
 });
 
 describe('Fix: Medicare Part B Base Premium', () => {
