@@ -31,6 +31,7 @@ export default function WhatIfPanel() {
     homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge,
     investmentReturn, inflation,
     stateInfo, planningToMove, moveAge, retirementStateInfo,
+    ssCola,
   } = usePlanner();
 
   // Baseline totals used to initialize state and compute scale factors
@@ -88,6 +89,7 @@ export default function WhatIfPanel() {
     housingType, mortgagePayoffAge,
     homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge,
     investmentReturn, inflation,
+    ssCola,
     stateInfo,
     moveAge: planningToMove ? moveAge : Infinity,
     retirementStateInfo: planningToMove ? retirementStateInfo : stateInfo,
@@ -111,6 +113,7 @@ export default function WhatIfPanel() {
     housingType, mortgagePayoffAge,
     homeValue, homeOwned, mortgageBalance, homeSaleIntent, homeSaleAge,
     investmentReturn, inflation,
+    ssCola,
     stateInfo, planningToMove, moveAge, retirementStateInfo,
   ]);
 

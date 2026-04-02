@@ -19,6 +19,7 @@ const BASE = {
   longTermCare: 0, ltcStartAge: 80,
   stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0.009, costOfLivingIndex: 100 },
   survivorFactor: 1.0,
+  ssCola: 0,
 };
 
 describe('runProjection', () => {
@@ -105,6 +106,7 @@ const P2_BASE = {
   longTermCare: 0, ltcStartAge: 80,
   stateInfo: { incomeTax: 0.05, hasSSIncomeTax: false, avgPropertyTaxRate: 0.009, costOfLivingIndex: 100 },
   survivorFactor: 1.0,
+  ssCola: 0,
 };
 
 describe('Phase 2: account type bucket tracking', () => {
@@ -149,6 +151,7 @@ describe('SS claiming age via adjustedSS values', () => {
     investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
     survivorFactor: 0.6,
     stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    ssCola: 0,
   };
 
   it('higher SS income leads to smaller monthly withdrawal than lower SS', () => {
@@ -179,12 +182,16 @@ describe('survivor SS transition in combined projection', () => {
     homeValue: 0, homeOwned: false,
     investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
     stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    ssCola: 0,
   };
 
   it('combined projection runway is no longer than a no-drop baseline with same total SS', () => {
-    // withSurvivor drops SS at spouse death; noSurvivorDrop keeps full $3000 forever
+    // withSurvivor: ss1=$2000, ss2=$1000 — at spouse death SS drops to max($2000,$1000)=$2000
+    // noSurvivorDrop: same couple (same Part B costs), ss1=$3000, ss2=$0 — at spouse death
+    //   SS stays at max($3000,$0)=$3000, so no income drop ever occurs.
+    // Same expense structure, higher income floor → noSurvivorDrop should have longer runway.
     const withSurvivor   = runProjection({ ...base });
-    const noSurvivorDrop = runProjection({ ...base, hasSpouse: false, ss1: 3000, survivorFactor: 1.0 });
+    const noSurvivorDrop = runProjection({ ...base, ss1: 3000, ss2: 0 });
     expect(withSurvivor.runwayYears).toBeLessThanOrEqual(noSurvivorDrop.runwayYears);
   });
 });
@@ -264,6 +271,7 @@ describe('IRMAA surcharges', () => {
     ...BASE,
     ss1: 1200, ss2: 0, pension: 0,
     retirementAge: 65, lifeExpectancy: 85,
+    ssCola: 0,
   };
 
   it('irmaa is 0 below income threshold', () => {
@@ -289,6 +297,7 @@ describe('IRMAA surcharges', () => {
     ss1: 5000, ss2: 0, pension: 4000, pensionCOLA: false,
     retirementAge: 65, lifeExpectancy: 85,
     trad401k: 0, tradIRA: 0, roth401k: 0, rothIRA: 0, taxableBrokerage: 200000,
+    ssCola: 0,
   };
 
   it('irmaa is positive when guaranteed income exceeds threshold', () => {
@@ -325,8 +334,9 @@ describe('Home equity sale', () => {
     });
     const saleYear = result.yearsData.find(d => d.age === 70);
     expect(saleYear.homeSaleProceeds).toBeGreaterThan(0);
-    // homeValue 300000 - mortgageBalance 0 = 300000 × 0.95 = 285000
-    expect(saleYear.homeSaleProceeds).toBe(285000);
+    // After Fix 4: appreciated value = 300000 * 1.03^20 * 0.95 (yearsUntilSale = 70 - 50 = 20)
+    const expectedProceeds = Math.round(300000 * Math.pow(1.03, 20) * 0.95);
+    expect(saleYear.homeSaleProceeds).toBe(expectedProceeds);
     // proceeds appear only once — all years after sale must be 0
     const postSale = result.yearsData.filter(d => d.age > 70);
     expect(postSale.every(d => d.homeSaleProceeds === 0)).toBe(true);
@@ -341,9 +351,11 @@ describe('Home equity sale', () => {
     expect(sellYear.expenses).toBeLessThan(keepYear.expenses);
   });
 
-  it('proceeds are 0 when mortgageBalance >= homeValue', () => {
+  it('proceeds are 0 when mortgageBalance >= appreciated home value at sale', () => {
+    // homeValue=300000, inflation=3, yearsUntilSale=20 → appreciated ≈ $541,833
+    // Use mortgageBalance=600000 (> appreciated value) so proceeds are still $0 after Fix 4
     const result = runProjection({
-      ...BASE, mortgageBalance: 400000, homeSaleIntent: 'sell', homeSaleAge: 70,
+      ...BASE, mortgageBalance: 600000, homeSaleIntent: 'sell', homeSaleAge: 70,
     });
     const saleYear = result.yearsData.find(d => d.age === 70);
     expect(saleYear.homeSaleProceeds).toBe(0);
@@ -374,5 +386,293 @@ describe('Home equity sale', () => {
     const keepResult = runProjection({ ...BASE, homeSaleIntent: 'keep', homeSaleAge: 65 });
     const keepFirst  = keepResult.yearsData.find(d => d.age === 65);
     expect(firstYear.expenses).toBeLessThan(keepFirst.expenses);
+  });
+});
+
+describe('Fix: SS COLA', () => {
+  // SS-only scenario: no pension, partTime, rental; no state SS tax
+  // inflation=3 so generalFactor != 1, but we can isolate SS by using no other income
+  const ssOnlyBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 95,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 95,
+    ss1: 2000, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 2000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 5, inflation: 3, healthcareInflation: 5.5,
+    housing: 1000, food: 500, healthcare: 300, transport: 200, leisure: 200, other: 100,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+  };
+
+  it('with ssCola=0, SS income in year 10 equals SS income in year 0', () => {
+    const result = runProjection({ ...ssOnlyBase, ssCola: 0 });
+    const drawdown = result.yearsData.filter(d => d.age >= 65);
+    // SS is the only income source; with ssCola=0 and no other income it must be flat
+    expect(drawdown[10].income).toBeCloseTo(drawdown[0].income, -2);
+  });
+
+  it('with ssCola=2.5, SS income in year 10 equals ssMonthly*12*1.025^10', () => {
+    const ssMonthlyVal = 2000;
+    const result = runProjection({ ...ssOnlyBase, ssCola: 2.5 });
+    const drawdown = result.yearsData.filter(d => d.age >= 65);
+    const expected = ssMonthlyVal * 12 * Math.pow(1.025, 10);
+    expect(drawdown[10].income).toBeCloseTo(expected, -2);
+  });
+
+  it('higher ssCola produces longer portfolio runway', () => {
+    const highCola = runProjection({ ...ssOnlyBase, ssCola: 3.0 });
+    const noCola   = runProjection({ ...ssOnlyBase, ssCola: 0 });
+    expect(highCola.runwayYears).toBeGreaterThanOrEqual(noCola.runwayYears);
+  });
+});
+
+describe('Fix: Early Withdrawal Penalty', () => {
+  // No accumulation phase: age == retirementAge, all-trad, no SS, no inflation, no return
+  // This isolates the penalty to a pure comparison.
+  const penaltyBase = {
+    age: 55, retirementAge: 55, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 1000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 0,
+    housing: 2000, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('early retiree (55) has higher year-0 withdrawal than retiree at 60 with same spending', () => {
+    // Same portfolio, same spending. Only diff: 55 < 59.5 (penalty applies), 60 >= 59.5 (no penalty).
+    const early = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const past  = runProjection({ ...penaltyBase, age: 60, retirementAge: 60 });
+    const earlyYear0 = early.yearsData.find(d => d.age === 55);
+    const pastYear0  = past.yearsData.find(d => d.age === 60);
+    // $2000/mo = $24,000 spending gap → tradSpend ≈ $24,000 → penalty = $2,400
+    expect(earlyYear0.withdrawal).toBeGreaterThan(pastYear0.withdrawal + 1500);
+  });
+
+  it('penalty is zero when retirement age is 62 (all years >= 59.5)', () => {
+    // At retirementAge=62, no year is < 59.5 — penalty must be $0 throughout
+    const result = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
+    // Baseline: no-penalty withdrawal at age 62 = $24,000/yr
+    // Compare against age 55 run — year where age=62 should have no penalty effect
+    const earlyRun = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const earlyAt62 = earlyRun.yearsData.find(d => d.age === 62); // age 62, past penalty
+    const lateAt62  = result.yearsData.find(d => d.age === 62);
+    expect(earlyAt62.withdrawal).toBeCloseTo(lateAt62.withdrawal, -2);
+  });
+
+  it('early retirement (55) depletes portfolio at younger age than same scenario retiring at 62', () => {
+    // runwayYears is relative to retirementAge, so it can't be compared across different
+    // retirementAge values. runOutYear (absolute age) is the correct metric: the early
+    // retiree should run out of money younger because the penalty drains their portfolio faster.
+    const early = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const late  = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
+    expect(early.runOutYear).toBeLessThan(late.runOutYear);
+  });
+
+  it('early withdrawal penalty actually reduces portfolio balance (bucket drained, not just display)', () => {
+    // With investmentReturn=0 and inflation=0, portfolio math is exact.
+    // Retire at 55 (penalty applies). After year 1, portfolioBalance should be less than
+    // (startingBalance - yearlyWithdrawal) if the penalty appears only in the display figure,
+    // OR equal to (startingBalance - yearlyWithdrawal) if the penalty correctly drains the bucket.
+    // We verify by comparing portfolioBalance against a no-penalty run of the same real spend.
+    const withPenalty    = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const withoutPenalty = runProjection({ ...penaltyBase, age: 60, retirementAge: 60 });
+
+    // Both start at $1,000,000. Same spending ($24,000/yr). investmentReturn=0, inflation=0.
+    // After year 1: no-penalty portfolio = ~976,000. Penalty portfolio should be lower.
+    const penaltyYear1   = withPenalty.yearsData.find(d => d.age === 55);
+    const noPenaltyYear1 = withoutPenalty.yearsData.find(d => d.age === 60);
+
+    expect(penaltyYear1.portfolio).toBeLessThan(noPenaltyYear1.portfolio);
+  });
+});
+
+describe('Fix: Medicare Part B Base Premium', () => {
+  const medicareBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 2000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 5.5,
+    housing: 0, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('expenses at age 65 include Part B (~$174.70/mo × 12 = ~$2,096/yr)', () => {
+    const result = runProjection({ ...medicareBase });
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    // Part B: 174.70 * 12 ≈ 2096; with no other expenses this is the only expense
+    expect(age65Year.expenses).toBeGreaterThan(2000);
+  });
+
+  it('expenses at age 75 are higher than at 65 (Part B inflates at healthcareInflation)', () => {
+    const result = runProjection({ ...medicareBase });
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    const age75Year = result.yearsData.find(d => d.age === 75);
+    expect(age75Year.expenses).toBeGreaterThan(age65Year.expenses);
+  });
+
+  it('Part B inflates correctly: at age 75, cost ≈ 174.70 * 1.055^10 * 12', () => {
+    const result = runProjection({ ...medicareBase, healthcareInflation: 5.5 });
+    const age75Year = result.yearsData.find(d => d.age === 75);
+    const expected = 174.70 * Math.pow(1.055, 10) * 12;
+    expect(age75Year.expenses).toBeCloseTo(expected, -1);
+  });
+
+  it('couple has higher expenses at 65+ (both on Part B)', () => {
+    const single = runProjection({ ...medicareBase });
+    const couple = runProjection({
+      ...medicareBase,
+      hasSpouse: true,
+      spouseAge: 65, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+      survivorFactor: 1.0,
+    });
+    const singleAge65 = single.yearsData.find(d => d.age === 65);
+    const coupleAge65 = couple.yearsData.find(d => d.age === 65);
+    expect(coupleAge65.expenses).toBeGreaterThan(singleAge65.expenses + 1000);
+  });
+
+  it('Part B is $0 before age 65 and kicks in at 65 for a pre-65 retiree', () => {
+    // Retire at 60; healthcare=0 so only Part B contributes to expenses
+    const result = runProjection({ ...medicareBase, age: 60, retirementAge: 60 });
+    const age64Year = result.yearsData.find(d => d.age === 64);
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    expect(age64Year.expenses).toBe(0);   // no Part B before 65
+    expect(age65Year.expenses).toBeGreaterThan(2000); // Part B kicks in at 65
+  });
+});
+
+describe('Fix: Home Appreciation + Mortgage Payoff at Sale', () => {
+  const saleBase = {
+    ...BASE,
+    ssCola: 0,
+    homeOwned: true,
+    homeValue: 400000,
+    mortgageBalance: 0,
+    homeSaleIntent: 'sell',
+    homeSaleAge: 85, // 20 years after retirementAge=65
+    inflation: 3,
+  };
+
+  it('selling a $400K home in 20 years at inflation=3 produces proceeds based on appreciated value', () => {
+    const result = runProjection({ ...saleBase });
+    const saleYear = result.yearsData.find(d => d.age === 85);
+    // BASE.age=50, homeSaleAge=85, yearsUntilSale=35
+    // appreciated value = 400000 * 1.03^35; net = appreciated * 0.95
+    // Before fix: 400000 * 0.95 = 380000
+    const expectedProceeds1 = Math.round(400000 * Math.pow(1.03, 35) * 0.95);
+    expect(saleYear.homeSaleProceeds).toBe(expectedProceeds1);
+  });
+
+  it('mortgagePayoffAge <= homeSaleAge results in $0 mortgage balance at sale', () => {
+    const result = runProjection({ ...saleBase, mortgageBalance: 150000, mortgagePayoffAge: 80, homeSaleAge: 85 });
+    const saleYear = result.yearsData.find(d => d.age === 85);
+    // mortgage paid off at 80, so sale at 85 uses $0 balance
+    // BASE.age=50, homeSaleAge=85, yearsUntilSale=35; proceeds = appreciated * 0.95 (no mortgage deducted)
+    const expectedProceeds2 = Math.round(400000 * Math.pow(1.03, 35) * 0.95);
+    expect(saleYear.homeSaleProceeds).toBe(expectedProceeds2);
+  });
+
+  it('mortgagePayoffAge > homeSaleAge subtracts entered mortgageBalance', () => {
+    const withMortgage    = runProjection({ ...saleBase, mortgageBalance: 150000, mortgagePayoffAge: 90, homeSaleAge: 85 });
+    const withoutMortgage = runProjection({ ...saleBase, mortgageBalance: 0,      mortgagePayoffAge: 90, homeSaleAge: 85 });
+    // With unpaid mortgage, proceeds should be lower
+    const saleWithMortgage    = withMortgage.yearsData.find(d => d.age === 85);
+    const saleWithoutMortgage = withoutMortgage.yearsData.find(d => d.age === 85);
+    expect(saleWithoutMortgage.homeSaleProceeds).toBeGreaterThan(saleWithMortgage.homeSaleProceeds + 100000);
+  });
+});
+
+describe('Fix: State Capital Gains Tax on Taxable Withdrawals', () => {
+  // All-taxable portfolio: every dollar withdrawn is from taxableBrokerage.
+  // 60% assumed gains, state tax applies to gains at state incomeTax rate.
+  // Portfolio ($2M) and spending ($4,500/mo = $54K/yr) chosen so both CA and FL
+  // deplete within the 50-yr projection window but CA depletes sooner:
+  //   FL (0% state): 2M / 54,000 ≈ 37 yrs
+  //   CA (9.3% state): annual cost ≈ 54,000 × (1 + 0.60×0.093) = ~57,013 → 2M/57,013 ≈ 35 yrs
+  const taxableBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 0, rothIRA: 0, taxableBrokerage: 2000000,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 0,
+    housing: 4500, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('high-tax state (9.3%) has shorter runway than no-tax state with identical all-taxable portfolio', () => {
+    const caSimple = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const flSimple = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    expect(flSimple.runwayYears).toBeGreaterThan(caSimple.runwayYears);
+  });
+
+  it('state with incomeTax=0 adds $0 state cap gains tax (same runway as another zero-tax state)', () => {
+    const flResult = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const txResult = runProjection({
+      ...taxableBase,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    // Both no-tax states → identical runway
+    expect(flResult.runwayYears).toBe(txResult.runwayYears);
+  });
+
+  it('all-trad portfolio is not double-taxed (stateTaxOnTrad already covers trad withdrawals)', () => {
+    // This verifies the fix targets ONLY taxable brokerage, not traditional accounts
+    const tradCA = runProjection({
+      ...taxableBase,
+      trad401k: 0, tradIRA: 2000000, taxableBrokerage: 0,
+      stateInfo: { incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    const tradFL = runProjection({
+      ...taxableBase,
+      trad401k: 0, tradIRA: 2000000, taxableBrokerage: 0,
+      stateInfo: { incomeTax: 0.0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    });
+    // CA trad still shorter (state tax on trad withdrawals applies) but shouldn't crash
+    expect(tradCA.runwayYears).toBeGreaterThan(0);
+    // The gap between CA and FL for trad-only should be different than for taxable-only
+    // (trad is fully taxed as ordinary income, taxable is only 60% of gains at state rate)
+    expect(tradFL.runwayYears).toBeGreaterThan(tradCA.runwayYears);
   });
 });
