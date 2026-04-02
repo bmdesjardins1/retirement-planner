@@ -214,7 +214,7 @@ export function runProjection(inputs) {
   const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 30, 30);
 
   // Home appreciation and mortgage state at sale — computed once, used in the loop
-  const yearsUntilSale = homeSaleAge - currentAge;
+  const yearsUntilSale = Number.isFinite(homeSaleAge) ? homeSaleAge - currentAge : 0;
   const appreciatedHomeValue = homeValue * Math.pow(1 + inflation / 100, yearsUntilSale);
   // Known simplification: if mortgage isn't paid off before sale, we use the full current
   // balance (no amortization). Full amortization deferred to Track B.
@@ -376,7 +376,8 @@ export function runProjection(inputs) {
     // In reality, the $250K/$500K primary residence exclusion eliminates gains tax for
     // most users. Treating it as taxable is a modest conservative overstatement.
     // Net proceeds = 95% of equity after realtor fees + closing costs.
-    // Note: mortgage paydown and home appreciation before the sale date are not modeled.
+    // Note: mortgage amortization (paydown) before the sale date is not modeled — the full
+    // current balance is used if the mortgage isn't paid off by sale. Deferred to Track B.
     let homeSaleProceeds = 0;
     if (homeOwned && homeSaleIntent === "sell" && ageInYear === homeSaleAge) {
       homeSaleProceeds = Math.max(0, appreciatedHomeValue - mortgageBalanceAtSale) * 0.95;

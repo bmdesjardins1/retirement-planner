@@ -564,17 +564,20 @@ describe('Fix: Home Appreciation + Mortgage Payoff at Sale', () => {
   it('selling a $400K home in 20 years at inflation=3 produces proceeds based on appreciated value', () => {
     const result = runProjection({ ...saleBase });
     const saleYear = result.yearsData.find(d => d.age === 85);
-    // appreciated value ≈ 400000 * 1.03^20 ≈ $721,974; net ≈ $721,974 * 0.95 ≈ $685,875
+    // BASE.age=50, homeSaleAge=85, yearsUntilSale=35
+    // appreciated value = 400000 * 1.03^35; net = appreciated * 0.95
     // Before fix: 400000 * 0.95 = 380000
-    expect(saleYear.homeSaleProceeds).toBeGreaterThan(500000);
+    const expectedProceeds1 = Math.round(400000 * Math.pow(1.03, 35) * 0.95);
+    expect(saleYear.homeSaleProceeds).toBe(expectedProceeds1);
   });
 
   it('mortgagePayoffAge <= homeSaleAge results in $0 mortgage balance at sale', () => {
     const result = runProjection({ ...saleBase, mortgageBalance: 150000, mortgagePayoffAge: 80, homeSaleAge: 85 });
     const saleYear = result.yearsData.find(d => d.age === 85);
     // mortgage paid off at 80, so sale at 85 uses $0 balance
-    // appreciated value ≈ $722K, no mortgage → proceeds ≈ $722K * 0.95
-    expect(saleYear.homeSaleProceeds).toBeGreaterThan(500000);
+    // BASE.age=50, homeSaleAge=85, yearsUntilSale=35; proceeds = appreciated * 0.95 (no mortgage deducted)
+    const expectedProceeds2 = Math.round(400000 * Math.pow(1.03, 35) * 0.95);
+    expect(saleYear.homeSaleProceeds).toBe(expectedProceeds2);
   });
 
   it('mortgagePayoffAge > homeSaleAge subtracts entered mortgageBalance', () => {
