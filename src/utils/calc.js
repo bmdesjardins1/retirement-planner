@@ -111,6 +111,7 @@ export function runProjection(inputs) {
   const retNonSSNonPensionNetWithPT    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
   const retNonSSNonPensionNetWithoutPT = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
   const retPensionNetMonthly           = pension - pension * retirementStateInfo.incomeTax;
+  const retSSMonthlyTaxable            = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
 
   const spousePensionStateTax      = spousePension * stateInfo.incomeTax;
   const spousePensionNetMonthly    = spousePension - spousePensionStateTax;
@@ -191,12 +192,13 @@ export function runProjection(inputs) {
   const baseHousingNeedAlone    = housing * col * 0.6;
   const baseNonHousingNeedAlone = (food + transport + leisure + other) * col * 0.6;
   const ssMonthlyAlone          = Math.max(ss1, ss2);
-  const ssMonthlyTaxableAlone   = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;  // new
+  const ssMonthlyTaxableAlone   = stateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
 
   const nonSSNonPensionNetWithPTAlone    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * stateInfo.incomeTax;
   const nonSSNonPensionNetWithoutPTAlone = rentalIncome - rentalIncome * stateInfo.incomeTax;
 
   // Retirement state survivor variants
+  const retSSMonthlyTaxableAlone            = retirementStateInfo.hasSSIncomeTax ? ssMonthlyAlone : 0;
   const retNonSSNonPensionNetWithPTAlone    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
   const retNonSSNonPensionNetWithoutPTAlone = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
 
@@ -262,7 +264,9 @@ export function runProjection(inputs) {
 
     // SS: survivor-adjusted base, then COLA-compounded
     const activeSSMonthly        = isSurvivor ? ssMonthlyAlone        : ssMonthly;
-    const activeSSTaxableMonthly = isSurvivor ? ssMonthlyTaxableAlone : ssMonthlyTaxable;
+    const activeSSTaxableMonthly = isSurvivor
+      ? (hasMoved ? retSSMonthlyTaxableAlone : ssMonthlyTaxableAlone)
+      : (hasMoved ? retSSMonthlyTaxable      : ssMonthlyTaxable);
     const ssColaFactor  = Math.pow(1 + ssCola / 100, y);
     const ssGrossAnnual = activeSSMonthly * 12 * ssColaFactor;
     const ssStateTax    = activeSSTaxableMonthly * 12 * ssColaFactor * activeStateTaxRate;

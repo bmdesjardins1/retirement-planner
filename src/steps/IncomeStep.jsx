@@ -58,7 +58,7 @@ export default function IncomeStep() {
               />
             </>
           )}
-          {ss1 > 0 && (
+          {(ss1 > 0 || (hasSpouse && ss2 > 0)) && (
             <FieldInput
               label="SS Annual COLA Rate"
               value={ssCola} min={0} max={4} step={0.1}
