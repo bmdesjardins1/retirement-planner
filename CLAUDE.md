@@ -31,8 +31,9 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - Monte Carlo simulation (PR #16 + band fix PR #17, 2026-03-25) — confidence band chart, volatility toggle, failure stats, sequence-of-returns explainer
 - Tax & Cost Summary redesign + SS breakeven (PR #18, 2026-03-29) — compact tax snapshot, side-by-side planning insights, SS breakeven callout per person
 - What If scenario comparisons (PR #19, 2026-03-30) — My Plan / What If tab toggle, 6 adjustable variables, verdict + chart + metric table comparison
+- Track A calculation fixes (PR #20, 2026-04-02) — SS COLA, early withdrawal penalty, Medicare Part B base premium, home appreciation, state cap gains tax
 
-**Resume point:** Strategic direction set 2026-03-31. Next: Track A calculation fixes (SS COLA, early withdrawal penalty, Medicare Part B base premium, home appreciation, state cap gains tax). Invoke `superpowers:brainstorming` with "Track A calculation fixes" to spec the work. Audit findings and implementation notes are in `memory/project_calc_audit.md` — do NOT re-audit.
+**Resume point:** Track A complete. Next: Track B modeling improvements — brainstorm one of: (1) state retirement income exemptions (pension/trad withdrawal exemptions by state), or (2) glide path / asset allocation (stock/bond split over time). Use `superpowers:brainstorming` for whichever is chosen.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
