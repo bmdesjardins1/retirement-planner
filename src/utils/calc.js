@@ -406,8 +406,10 @@ export function runProjection(inputs) {
       married: activeMarried,
     }) * generalFactor;
 
-    // 10% IRS penalty on trad withdrawals before age 59.5
-    // Rule 72(t) SEPP distributions can avoid this — not modeled (accepted simplification).
+    // 10% IRS penalty on trad withdrawals before age 59.5.
+    // Computed on tradSpend (net of state tax) rather than tradGross — a minor
+    // understatement for state-taxed accounts. Accepted simplification.
+    // Rule 72(t) SEPP distributions can avoid this — not modeled.
     const earlyWithdrawalPenalty = ageInYear < 59.5 ? tradSpend * 0.10 : 0;
 
     // --- Step 3: Total portfolio deduction ---
