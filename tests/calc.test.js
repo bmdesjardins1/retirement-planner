@@ -535,4 +535,13 @@ describe('Fix: Medicare Part B Base Premium', () => {
     const coupleAge65 = couple.yearsData.find(d => d.age === 65);
     expect(coupleAge65.expenses).toBeGreaterThan(singleAge65.expenses + 1000);
   });
+
+  it('Part B is $0 before age 65 and kicks in at 65 for a pre-65 retiree', () => {
+    // Retire at 60; healthcare=0 so only Part B contributes to expenses
+    const result = runProjection({ ...medicareBase, age: 60, retirementAge: 60 });
+    const age64Year = result.yearsData.find(d => d.age === 64);
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    expect(age64Year.expenses).toBe(0);   // no Part B before 65
+    expect(age65Year.expenses).toBeGreaterThan(2000); // Part B kicks in at 65
+  });
 });

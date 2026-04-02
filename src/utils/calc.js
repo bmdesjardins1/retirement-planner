@@ -326,9 +326,12 @@ export function runProjection(inputs) {
     const medicareCount = irmaaApplies ? (spouseOnMedicare ? 2 : 1) : 0;
     const irmaaAnnual = irmaaSurchargePerPerson * medicareCount * 12;
 
-    // Medicare Part B base premium — auto-applied at age 65+, inflates from age 65 onward.
-    // Inflation base is age 65 for each person (not drawdown year 0) because
-    // MEDICARE_PART_B_MONTHLY_2024 represents the 2024 cost at age 65.
+    // Medicare Part B base premium — auto-applied at age 65+.
+    // Inflation exponent is (ageInYear - 65), NOT y (drawdown year).
+    // This is intentional: MEDICARE_PART_B_MONTHLY_2024 is the 2024 cost at age 65.
+    // Someone retiring at 67 has already been on Medicare 2 years, so their cost
+    // has already inflated — (ageInYear - 65) = 2 correctly captures that.
+    // Using y instead would understate Part B for post-65 retirees.
     const primaryPartB = ageInYear >= 65
       ? MEDICARE_PART_B_MONTHLY_2024 * Math.pow(1 + healthcareInflation / 100, ageInYear - 65)
       : 0;
