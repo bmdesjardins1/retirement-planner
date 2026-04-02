@@ -63,7 +63,7 @@ export default function SpendingStep() {
         <Card>
           <FieldInput label="Food & Groceries"            value={food}       min={0} max={2000} step={50} onChange={setFood}       prefix="$" suffix="/mo" />
           <FieldInput label="Monthly Healthcare in Retirement (on Medicare, age 65+)" value={healthcare} min={0} max={3000} step={50} onChange={setHealthcare} prefix="$" suffix="/mo"
-            note="Medicare Part B + supplement avg $400–900/mo per person. Applies from age 65 onward." />
+            note="Medicare Part B (~$175/mo per person) is added automatically at age 65 — do not include it here. Add supplement/Medigap costs only (~$150–500/mo per person)." />
           {(retirementAge < 65 || (hasSpouse && spouseRetirementAge < 65)) && (
             <FieldInput
               label="Monthly Healthcare Before Medicare"

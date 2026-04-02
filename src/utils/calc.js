@@ -2,6 +2,8 @@ import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
 import { getRmdFactor } from "./rmdTable";
 import { getIrmaaSurcharge } from './irmaaTable.js';
 
+const MEDICARE_PART_B_MONTHLY_2024 = 174.70; // per person, 2024 base premium
+
 export function verdictConfig(years, lifeExpectancy, age) {
   const remaining = lifeExpectancy - age;
   if (years >= remaining + 10) return {
@@ -324,11 +326,23 @@ export function runProjection(inputs) {
     const medicareCount = irmaaApplies ? (spouseOnMedicare ? 2 : 1) : 0;
     const irmaaAnnual = irmaaSurchargePerPerson * medicareCount * 12;
 
+    // Medicare Part B base premium — auto-applied at age 65+, inflates from age 65 onward.
+    // Inflation base is age 65 for each person (not drawdown year 0) because
+    // MEDICARE_PART_B_MONTHLY_2024 represents the 2024 cost at age 65.
+    const primaryPartB = ageInYear >= 65
+      ? MEDICARE_PART_B_MONTHLY_2024 * Math.pow(1 + healthcareInflation / 100, ageInYear - 65)
+      : 0;
+    const spousePartB = !isSurvivor && hasSpouse && spouseAgeInYear >= 65
+      ? MEDICARE_PART_B_MONTHLY_2024 * Math.pow(1 + healthcareInflation / 100, spouseAgeInYear - 65)
+      : 0;
+    const annualPartB = (primaryPartB + spousePartB) * 12;
+
     const yearlyNeed =
       (activeBaseNonHousingNeed + effectiveHousingNeed + activeMonthlyPropertyTax) * 12 * generalFactor +
       activeBaseHealthcareNeed * 12 * healthcareFactor +
       yearlyLTC +
-      irmaaAnnual;
+      irmaaAnnual +
+      annualPartB;
     // Each pension's COLA applies independently
     const pensionContrib =
       (pensionCOLA      ? activePrimaryPensionNet * 12 * generalFactor : activePrimaryPensionNet * 12) +

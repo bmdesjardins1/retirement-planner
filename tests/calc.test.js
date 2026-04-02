@@ -186,9 +186,12 @@ describe('survivor SS transition in combined projection', () => {
   };
 
   it('combined projection runway is no longer than a no-drop baseline with same total SS', () => {
-    // withSurvivor drops SS at spouse death; noSurvivorDrop keeps full $3000 forever
+    // withSurvivor: ss1=$2000, ss2=$1000 — at spouse death SS drops to max($2000,$1000)=$2000
+    // noSurvivorDrop: same couple (same Part B costs), ss1=$3000, ss2=$0 — at spouse death
+    //   SS stays at max($3000,$0)=$3000, so no income drop ever occurs.
+    // Same expense structure, higher income floor → noSurvivorDrop should have longer runway.
     const withSurvivor   = runProjection({ ...base });
-    const noSurvivorDrop = runProjection({ ...base, hasSpouse: false, ss1: 3000, survivorFactor: 1.0 });
+    const noSurvivorDrop = runProjection({ ...base, ss1: 3000, ss2: 0 });
     expect(withSurvivor.runwayYears).toBeLessThanOrEqual(noSurvivorDrop.runwayYears);
   });
 });
@@ -476,5 +479,60 @@ describe('Fix: Early Withdrawal Penalty', () => {
     const early = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
     const late  = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
     expect(early.runOutYear).toBeLessThan(late.runOutYear);
+  });
+});
+
+describe('Fix: Medicare Part B Base Premium', () => {
+  const medicareBase = {
+    age: 65, retirementAge: 65, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 2000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 5.5,
+    housing: 0, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('expenses at age 65 include Part B (~$174.70/mo × 12 = ~$2,096/yr)', () => {
+    const result = runProjection({ ...medicareBase });
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    // Part B: 174.70 * 12 ≈ 2096; with no other expenses this is the only expense
+    expect(age65Year.expenses).toBeGreaterThan(2000);
+  });
+
+  it('expenses at age 75 are higher than at 65 (Part B inflates at healthcareInflation)', () => {
+    const result = runProjection({ ...medicareBase });
+    const age65Year = result.yearsData.find(d => d.age === 65);
+    const age75Year = result.yearsData.find(d => d.age === 75);
+    expect(age75Year.expenses).toBeGreaterThan(age65Year.expenses);
+  });
+
+  it('Part B inflates correctly: at age 75, cost ≈ 174.70 * 1.055^10 * 12', () => {
+    const result = runProjection({ ...medicareBase, healthcareInflation: 5.5 });
+    const age75Year = result.yearsData.find(d => d.age === 75);
+    const expected = 174.70 * Math.pow(1.055, 10) * 12;
+    expect(age75Year.expenses).toBeCloseTo(expected, -1);
+  });
+
+  it('couple has higher expenses at 65+ (both on Part B)', () => {
+    const single = runProjection({ ...medicareBase });
+    const couple = runProjection({
+      ...medicareBase,
+      hasSpouse: true,
+      spouseAge: 65, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+      survivorFactor: 1.0,
+    });
+    const singleAge65 = single.yearsData.find(d => d.age === 65);
+    const coupleAge65 = couple.yearsData.find(d => d.age === 65);
+    expect(coupleAge65.expenses).toBeGreaterThan(singleAge65.expenses + 1000);
   });
 });
