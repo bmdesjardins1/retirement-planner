@@ -24,6 +24,7 @@ export function PlannerProvider({ children }) {
   const [ss2, setSs2]                         = useState(1400);
   const [ss1ClaimAge, setSs1ClaimAge]         = useState(67);
   const [ss2ClaimAge, setSs2ClaimAge]         = useState(67);
+  const [ssCola, setSsCola]                   = useState(2.5);
   const [pension, setPension]                 = useState(0);
   const [pensionCOLA, setPensionCOLA]         = useState(false);
   const [pensionSurvivorPct, setPensionSurvivorPct]           = useState(100);
@@ -177,11 +178,12 @@ export function PlannerProvider({ children }) {
     spouseAnnualContribIRA:  hasSpouse ? spouseAnnualContribIRA  : 0,
     spouseAnnualContribOther: hasSpouse ? spouseAnnualContribOther : 0,
     survivorFactor: 1.0,
+    ssCola,
     ...sharedInputs,
   }), [
     age, retirementAge, lifeExpectancy,
     spouseAge, spouseRetirementAge, spouseLifeExpectancy,
-    hasSpouse, ss1, ss1ClaimAge, ss2, ss2ClaimAge,
+    hasSpouse, ss1, ss1ClaimAge, ss2, ss2ClaimAge, ssCola,
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
@@ -212,11 +214,12 @@ export function PlannerProvider({ children }) {
     spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
     spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
     survivorFactor: 0.6,
+    ssCola,
     ...sharedInputs,
     spousePension: 0,   // prevent spouse pension leaking into primary-solo summary cards
   }), [
     age, retirementAge, lifeExpectancy,
-    ss1, ss1ClaimAge,
+    ss1, ss1ClaimAge, ssCola,
     trad401k, roth401k, tradIRA, rothIRA, taxableBrokerage,
     hasTrad401k, hasRoth401k, hasTradIRA, hasRothIRA, hasTaxableBrokerage,
     annualContrib401k, employerMatch, annualContribIRA, annualContribOther,
@@ -245,13 +248,14 @@ export function PlannerProvider({ children }) {
     spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
     spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
     survivorFactor: 0.6,
+    ssCola,
     ...sharedInputs,
     pension: spousePension,           // spouse's own pension, not primary's
     pensionCOLA: spousePensionCOLA,   // spouse's own COLA flag
     spousePension: 0,                 // prevent double-counting (pension above = spousePension)
   }) : null, [
     hasSpouse, spouseAge, spouseRetirementAge, spouseLifeExpectancy,
-    ss2, ss2ClaimAge,
+    ss2, ss2ClaimAge, ssCola,
     spouseTrad401k, spouseRoth401k, spouseTradIRA, spouseRothIRA, spouseTaxableBrokerage,
     spouseHasTrad401k, spouseHasRoth401k, spouseHasTradIRA, spouseHasRothIRA, spouseHasTaxableBrokerage,
     spouseAnnualContrib401k, spouseEmployerMatch, spouseAnnualContribIRA, spouseAnnualContribOther,
@@ -298,6 +302,7 @@ export function PlannerProvider({ children }) {
       ss2, setSs2,
       ss1ClaimAge, setSs1ClaimAge,
       ss2ClaimAge, setSs2ClaimAge,
+      ssCola, setSsCola,
       adjustedSS1, adjustedSS2,
       pension, setPension,
       pensionCOLA, setPensionCOLA,
