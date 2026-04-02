@@ -213,6 +213,13 @@ export function runProjection(inputs) {
   // +30 buffer: ensures well-funded portfolios show meaningful runway beyond life expectancy
   const yearsToProject = Math.max(effectiveLifeExpectancy - retirementAge + 30, 30);
 
+  // Home appreciation and mortgage state at sale — computed once, used in the loop
+  const yearsUntilSale = homeSaleAge - currentAge;
+  const appreciatedHomeValue = homeValue * Math.pow(1 + inflation / 100, yearsUntilSale);
+  // Known simplification: if mortgage isn't paid off before sale, we use the full current
+  // balance (no amortization). Full amortization deferred to Track B.
+  const mortgageBalanceAtSale = mortgagePayoffAge <= homeSaleAge ? 0 : mortgageBalance;
+
   for (let y = 0; y <= yearsToProject; y++) {
     const currentYear = new Date().getFullYear() + accumulationYears + y;
     const generalFactor   = Math.pow(1 + inflation / 100, y);
@@ -372,7 +379,7 @@ export function runProjection(inputs) {
     // Note: mortgage paydown and home appreciation before the sale date are not modeled.
     let homeSaleProceeds = 0;
     if (homeOwned && homeSaleIntent === "sell" && ageInYear === homeSaleAge) {
-      homeSaleProceeds = Math.max(0, homeValue - mortgageBalance) * 0.95;
+      homeSaleProceeds = Math.max(0, appreciatedHomeValue - mortgageBalanceAtSale) * 0.95;
       taxableBucket += homeSaleProceeds;
     }
 
