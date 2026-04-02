@@ -406,8 +406,12 @@ export function runProjection(inputs) {
       married: activeMarried,
     }) * generalFactor;
 
+    // 10% IRS penalty on trad withdrawals before age 59.5
+    // Rule 72(t) SEPP distributions can avoid this — not modeled (accepted simplification).
+    const earlyWithdrawalPenalty = ageInYear < 59.5 ? tradSpend * 0.10 : 0;
+
     // --- Step 3: Total portfolio deduction ---
-    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + federalTax;
+    const yearlyWithdrawal = preTaxGap + stateTaxOnTrad + capGainsTax + federalTax + earlyWithdrawalPenalty;
 
     // --- Bucket balance updates ---
     taxableBucket -= taxableSpend;

@@ -425,3 +425,56 @@ describe('Fix: SS COLA', () => {
     expect(highCola.runwayYears).toBeGreaterThanOrEqual(noCola.runwayYears);
   });
 });
+
+describe('Fix: Early Withdrawal Penalty', () => {
+  // No accumulation phase: age == retirementAge, all-trad, no SS, no inflation, no return
+  // This isolates the penalty to a pure comparison.
+  const penaltyBase = {
+    age: 55, retirementAge: 55, lifeExpectancy: 85,
+    hasSpouse: false, spouseAge: 0, spouseRetirementAge: 65, spouseLifeExpectancy: 85,
+    ss1: 0, ss2: 0,
+    pension: 0, pensionCOLA: false,
+    partTimeIncome: 0, partTimeEndAge: 70, rentalIncome: 0,
+    annualContrib401k: 0, employerMatch: 0, annualContribIRA: 0, annualContribOther: 0,
+    spouseAnnualContrib401k: 0, spouseEmployerMatch: 0,
+    spouseAnnualContribIRA: 0, spouseAnnualContribOther: 0,
+    trad401k: 0, roth401k: 0, tradIRA: 1000000, rothIRA: 0, taxableBrokerage: 0,
+    homeValue: 0, homeOwned: false,
+    investmentReturn: 0, inflation: 0, healthcareInflation: 0,
+    housing: 2000, food: 0, healthcare: 0, transport: 0, leisure: 0, other: 0,
+    longTermCare: 0, ltcStartAge: 80,
+    stateInfo: { incomeTax: 0, hasSSIncomeTax: false, avgPropertyTaxRate: 0, costOfLivingIndex: 100 },
+    survivorFactor: 1.0,
+    ssCola: 0,
+  };
+
+  it('early retiree (55) has higher year-0 withdrawal than retiree at 60 with same spending', () => {
+    // Same portfolio, same spending. Only diff: 55 < 59.5 (penalty applies), 60 >= 59.5 (no penalty).
+    const early = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const past  = runProjection({ ...penaltyBase, age: 60, retirementAge: 60 });
+    const earlyYear0 = early.yearsData.find(d => d.age === 55);
+    const pastYear0  = past.yearsData.find(d => d.age === 60);
+    // $2000/mo = $24,000 spending gap → tradSpend ≈ $24,000 → penalty = $2,400
+    expect(earlyYear0.withdrawal).toBeGreaterThan(pastYear0.withdrawal + 1500);
+  });
+
+  it('penalty is zero when retirement age is 62 (all years >= 59.5)', () => {
+    // At retirementAge=62, no year is < 59.5 — penalty must be $0 throughout
+    const result = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
+    // Baseline: no-penalty withdrawal at age 62 = $24,000/yr
+    // Compare against age 55 run — year where age=62 should have no penalty effect
+    const earlyRun = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const earlyAt62 = earlyRun.yearsData.find(d => d.age === 62); // age 62, past penalty
+    const lateAt62  = result.yearsData.find(d => d.age === 62);
+    expect(earlyAt62.withdrawal).toBeCloseTo(lateAt62.withdrawal, -2);
+  });
+
+  it('early retirement (55) depletes portfolio at younger age than same scenario retiring at 62', () => {
+    // runwayYears is relative to retirementAge, so it can't be compared across different
+    // retirementAge values. runOutYear (absolute age) is the correct metric: the early
+    // retiree should run out of money younger because the penalty drains their portfolio faster.
+    const early = runProjection({ ...penaltyBase, age: 55, retirementAge: 55 });
+    const late  = runProjection({ ...penaltyBase, age: 62, retirementAge: 62 });
+    expect(early.runOutYear).toBeLessThan(late.runOutYear);
+  });
+});
