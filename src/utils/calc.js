@@ -1,6 +1,7 @@
 import { estimateFederalTax, estimateCapitalGainsTax } from "./federalTax";
 import { getRmdFactor } from "./rmdTable";
 import { getIrmaaSurcharge } from './irmaaTable.js';
+import { computeStateTax } from './stateTax';
 
 const MEDICARE_PART_B_MONTHLY_2024 = 174.70; // per person, 2024 base premium
 
@@ -93,8 +94,28 @@ export function runProjection(inputs) {
   const monthlyPropertyTax = homeOwned ? (homeValue * stateInfo.avgPropertyTaxRate) / 12 : 0;
 
   // Pension extracted so it can inflate independently (pensionCOLA toggle).
-  const pensionStateTax   = pension * stateInfo.incomeTax;
+  // Primary pension — current state (personCount: 1; each pension belongs to one person)
+  const pensionStateTax   = computeStateTax({ grossAnnual: pension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12;
   const pensionNetMonthly = pension - pensionStateTax;
+
+  // Spouse pension — current state
+  const spousePensionStateTax   = computeStateTax({ grossAnnual: spousePension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12;
+  const spousePensionNetMonthly = spousePension - spousePensionStateTax;
+
+  // Primary pension — retirement state (note: retirementStateInfo, not stateInfo)
+  const retPensionNetMonthly = pension - computeStateTax({ grossAnnual: pension * 12, stateInfo: retirementStateInfo, type: 'pension', personCount: 1 }) / 12;
+
+  // Spouse pension — retirement state (note: retirementStateInfo, not stateInfo)
+  const retSpousePensionNetMonthly = spousePension - computeStateTax({ grossAnnual: spousePension * 12, stateInfo: retirementStateInfo, type: 'pension', personCount: 1 }) / 12;
+
+  // Pension exemption savings: difference between old flat-rate tax and new exemption-adjusted tax.
+  // Uses current state only (summary cards show current-state figures, not retirement-state).
+  // Pension-only — trad exemption savings vary by withdrawal amount and are not included here.
+  const oldPensionTax       = pension       * stateInfo.incomeTax;
+  const oldSpousePensionTax = spousePension * stateInfo.incomeTax;
+  const stateExemptionSavingsMonthly = Math.round(
+    (oldPensionTax - pensionStateTax) + (oldSpousePensionTax - spousePensionStateTax)
+  );
 
   // Non-SS non-pension income (part-time + rental) — inflates with generalFactor.
   // SS is handled separately inside the drawdown loop with its own COLA rate.
@@ -112,12 +133,7 @@ export function runProjection(inputs) {
   // Retirement state income variants (post-move, non-survivor)
   const retNonSSNonPensionNetWithPT    = (partTimeIncome + rentalIncome) - (partTimeIncome + rentalIncome) * retirementStateInfo.incomeTax;
   const retNonSSNonPensionNetWithoutPT = rentalIncome - rentalIncome * retirementStateInfo.incomeTax;
-  const retPensionNetMonthly           = pension - pension * retirementStateInfo.incomeTax;
   const retSSMonthlyTaxable            = retirementStateInfo.hasSSIncomeTax ? ssMonthly : 0;
-
-  const spousePensionStateTax      = spousePension * stateInfo.incomeTax;
-  const spousePensionNetMonthly    = spousePension - spousePensionStateTax;
-  const retSpousePensionNetMonthly = spousePension - spousePension * retirementStateInfo.incomeTax;
 
   // For summary cards (year-0, with part-time) — SS at year-0 value (COLA not applied to summary)
   const ssStateTaxMonthly = ssMonthlyTaxable * stateInfo.incomeTax;
@@ -402,10 +418,18 @@ export function runProjection(inputs) {
     const rothSpend        = Math.min(rothBucket, remaining1 - tradSpendNatural);
 
     // --- Step 2: Tax computation based on spending split ---
-    // State tax on Traditional spending (flat-rate gross-up is exact).
-    // RMD excess is already included in tradSpend so it's captured here automatically.
-    const tradGross      = activeStateTaxRate < 1 ? tradSpend / (1 - activeStateTaxRate) : tradSpend;
-    const stateTaxOnTrad = tradGross - tradSpend;
+    // State tax on Traditional spending — gross-up with per-person exemption.
+    // tradPersonCount: each person has their own tradExemptPerPerson; survivor phase = 1 person.
+    // Exemption is applied to tradSpend (net) as a simplification — mathematically it applies to
+    // gross, but since state rates are flat (max ~10%) the understatement is < 0.5% of the exempted
+    // amount. This avoids a circular dependency between the gross-up and the exemption.
+    const tradPersonCount  = isSurvivor ? 1 : (hasSpouse ? 2 : 1);
+    const tradExemptAnnual = ((hasMoved ? retirementStateInfo : stateInfo).tradExemptPerPerson ?? 0) * tradPersonCount;
+    const taxableTrad      = Math.max(0, tradSpend - tradExemptAnnual);
+    const stateTaxOnTrad   = activeStateTaxRate > 0 && activeStateTaxRate < 1
+      ? taxableTrad * activeStateTaxRate / (1 - activeStateTaxRate)
+      : 0;
+    const tradGross        = tradSpend + stateTaxOnTrad;
 
     // Federal tax — two-iteration real-terms gross-up.
     // rmdExcess / generalFactor adds the forced RMD income to ordinary income for bracket purposes.
@@ -504,6 +528,7 @@ export function runProjection(inputs) {
     totalMonthlyNeed: Math.round(totalMonthlyNeed),
     netMonthlyIncome: Math.round(netMonthlyIncome),
     stateTaxMonthly: Math.round(stateTaxMonthly),
+    stateExemptionSavingsMonthly,
     federalTaxMonthly,
     monthlyGap: Math.round(monthlyGap),
     costOfLivingDelta: stateInfo.costOfLivingIndex - 100,
