@@ -676,3 +676,80 @@ describe('Fix: State Capital Gains Tax on Taxable Withdrawals', () => {
     expect(tradFL.runwayYears).toBeGreaterThan(tradCA.runwayYears);
   });
 });
+
+// Helper stateInfo objects for exemption tests
+const illinoisInfo = {
+  incomeTax: 0.0495, hasSSIncomeTax: false, avgPropertyTaxRate: 0.0227,
+  costOfLivingIndex: 95, pensionExemptPerPerson: Infinity, tradExemptPerPerson: Infinity,
+};
+const georgiaInfo = {
+  incomeTax: 0.055, hasSSIncomeTax: false, avgPropertyTaxRate: 0.0092,
+  costOfLivingIndex: 93, pensionExemptPerPerson: 65000, tradExemptPerPerson: 65000,
+};
+
+describe('State retirement income exemptions — pension pre-loop', () => {
+  it('Illinois: pension net equals full pension (no state tax, full exemption)', () => {
+    // Illinois exempts all retirement income; pensionStateTax should be 0
+    const result = runProjection({
+      ...BASE,
+      pension: 2000,  // $2,000/mo = $24,000/yr — well under Infinity exemption
+      stateInfo: illinoisInfo,
+    });
+    // stateTaxMonthly = ssStateTax + nonSSNonPension tax + pension tax + spousePension tax
+    // With full exemption: pension portion = 0
+    // BASE has ss1=2000, hasSSIncomeTax=false → ssStateTax=0
+    // BASE has no part-time/rental → nonSSNonPension=0
+    // Expected: stateTaxMonthly = 0
+    expect(result.stateTaxMonthly).toBe(0);
+  });
+
+  it('Georgia: pension under $65K cap has no state tax', () => {
+    // Pension of $3,000/mo = $36,000/yr — under $65K cap → no state tax
+    const result = runProjection({
+      ...BASE,
+      pension: 3000,
+      stateInfo: georgiaInfo,
+    });
+    expect(result.stateTaxMonthly).toBe(0);
+  });
+
+  it('Georgia: pension over $65K cap — only excess is taxed', () => {
+    // Pension of $8,000/mo = $96,000/yr → taxable = $96,000 - $65,000 = $31,000/yr
+    // state tax = $31,000 * 0.055 = $1,705/yr = ~$142/mo
+    const result = runProjection({
+      ...BASE,
+      pension: 8000,
+      stateInfo: georgiaInfo,
+    });
+    expect(result.stateTaxMonthly).toBeCloseTo(142, 0);
+  });
+
+  it('Illinois: stateExemptionSavingsMonthly equals what flat-rate would have charged', () => {
+    // Illinois rate 4.95%, pension $2,000/mo = $24,000/yr
+    // Old flat-rate tax: $2,000 * 0.0495 = $99/mo
+    // New exemption-adjusted: $0/mo
+    // Savings = $99/mo
+    const result = runProjection({
+      ...BASE,
+      pension: 2000,
+      stateInfo: illinoisInfo,
+    });
+    const expectedSavings = Math.round(2000 * 0.0495);
+    expect(result.stateExemptionSavingsMonthly).toBe(expectedSavings);
+  });
+});
+
+describe('State retirement income exemptions — trad withdrawal loop', () => {
+  it('Illinois: trad withdrawal runway is longer than California (same inputs, higher trad balance)', () => {
+    // Illinois exempts all trad withdrawals; California does not.
+    // With a large trad balance, Illinois users pay less state tax on withdrawals → portfolio lasts longer.
+    const californiaInfo = {
+      incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0.0073,
+      costOfLivingIndex: 100, pensionExemptPerPerson: 0, tradExemptPerPerson: 0,
+    };
+    const illinoisInfoNormalized = { ...illinoisInfo, costOfLivingIndex: 100, avgPropertyTaxRate: 0.0073 };
+    const califResult = runProjection({ ...BASE, stateInfo: californiaInfo, trad401k: 500000, tradIRA: 100000 });
+    const ilResult    = runProjection({ ...BASE, stateInfo: illinoisInfoNormalized, trad401k: 500000, tradIRA: 100000 });
+    expect(ilResult.runwayYears).toBeGreaterThan(califResult.runwayYears);
+  });
+});

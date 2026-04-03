@@ -527,6 +527,16 @@ export default function ResultsStep() {
             <span className="tax-snapshot-label">{state} State Tax</span>
             <span className="tax-snapshot-value">−${results.stateTaxMonthly.toLocaleString()}/mo</span>
           </div>
+          {results.stateExemptionSavingsMonthly > 0 && (
+            <div className="tax-snapshot-row">
+              <span className="tax-snapshot-label" style={{ paddingLeft: 12, color: 'var(--color-green, #4caf50)', fontSize: '0.9em' }}>
+                Pension exemption savings
+              </span>
+              <span className="tax-snapshot-value" style={{ color: 'var(--color-green, #4caf50)', fontSize: '0.9em' }}>
+                −${results.stateExemptionSavingsMonthly.toLocaleString()}/mo
+              </span>
+            </div>
+          )}
           {planningToMove && (
             <div className="tax-snapshot-note">
               After move to {retirementState} at age {moveAge}: income tax → {(retirementStateInfo.incomeTax * 100).toFixed(1)}%
