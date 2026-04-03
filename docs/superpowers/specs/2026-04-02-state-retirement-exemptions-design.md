@@ -28,7 +28,7 @@ Values:
 - `Infinity` — full exemption (state taxes none of this income type)
 - A positive dollar amount — partial exemption cap
 
-States with `incomeTax: 0` receive `0` for both fields (the zero rate already eliminates the tax).
+States with `incomeTax: 0` receive `0` for both fields. These values are never consulted — `computeStateTax` returns early when `rate === 0`. The `0` values are placeholders only; they have no effect on the output.
 
 Examples:
 ```js
@@ -70,77 +70,92 @@ Parameters:
 
 ### Pension tax (pre-loop)
 
-Replace flat-rate pension tax multiplications with `computeStateTax` calls:
+Replace flat-rate pension tax multiplications with `computeStateTax` calls. All four pension pre-computations use `personCount: 1` — each pension belongs to exactly one person regardless of marital status or survivor phase.
 
 ```js
-// Before
-const pensionStateTax = pension * stateInfo.incomeTax;
+// Primary pension — current state
+const pensionStateTax   = computeStateTax({ grossAnnual: pension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12;
+const pensionNetMonthly = pension - pensionStateTax;
 
-// After
-const pensionStateTax = computeStateTax({
-  grossAnnual: pension * 12, stateInfo, type: 'pension', personCount: 1,
-}) / 12;
+// Spouse pension — current state
+const spousePensionStateTax   = computeStateTax({ grossAnnual: spousePension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12;
+const spousePensionNetMonthly = spousePension - spousePensionStateTax;
+
+// Primary pension — retirement state (note: retirementStateInfo, not stateInfo)
+const retPensionNetMonthly = pension - computeStateTax({ grossAnnual: pension * 12, stateInfo: retirementStateInfo, type: 'pension', personCount: 1 }) / 12;
+
+// Spouse pension — retirement state (note: retirementStateInfo, not stateInfo)
+const retSpousePensionNetMonthly = spousePension - computeStateTax({ grossAnnual: spousePension * 12, stateInfo: retirementStateInfo, type: 'pension', personCount: 1 }) / 12;
 ```
-
-Same pattern applies to:
-- Spouse pension (`spousePensionStateTax`)
-- Retirement-state pension variants (`retPensionNetMonthly`, `retSpousePensionNetMonthly`)
 
 ### Trad withdrawal tax (inside the drawdown loop)
 
 Current gross-up logic assumes all trad withdrawals are taxable:
 ```js
-const tradGross = activeStateTaxRate < 1 ? tradSpend / (1 - activeStateTaxRate) : tradSpend;
+const tradGross      = activeStateTaxRate < 1 ? tradSpend / (1 - activeStateTaxRate) : tradSpend;
 const stateTaxOnTrad = tradGross - tradSpend;
 ```
 
-New logic with exemption:
+New logic with exemption. `activeStateTaxRate` already exists in the loop (derived from `hasMoved`); derive the exemption from the same condition rather than introducing a separate `activeStateInfo` variable:
+
 ```js
-const tradPersonCount = isSurvivor ? 1 : (hasSpouse ? 2 : 1);
-const activeStateInfo = hasMoved ? retirementStateInfo : stateInfo;
-const tradExemptAnnual = (activeStateInfo.tradExemptPerPerson ?? 0) * tradPersonCount;
-const taxableTrad = Math.max(0, tradSpend - tradExemptAnnual);
-const stateTaxOnTrad = activeStateTaxRate < 1
+const tradPersonCount  = isSurvivor ? 1 : (hasSpouse ? 2 : 1);
+const tradExemptAnnual = ((hasMoved ? retirementStateInfo : stateInfo).tradExemptPerPerson ?? 0) * tradPersonCount;
+const taxableTrad      = Math.max(0, tradSpend - tradExemptAnnual);
+const stateTaxOnTrad   = activeStateTaxRate > 0 && activeStateTaxRate < 1
   ? taxableTrad * activeStateTaxRate / (1 - activeStateTaxRate)
   : 0;
-const tradGross = tradSpend + stateTaxOnTrad;
+const tradGross        = tradSpend + stateTaxOnTrad;
 ```
 
-The exemption applies to the net `tradSpend` as a simplification — mathematically, exemptions are defined on gross income, but since state tax rates are flat and the difference is small, this avoids a circular dependency.
+The guard `activeStateTaxRate > 0 && activeStateTaxRate < 1` replaces the original `< 1` check and explicitly handles the `>= 1` edge case (impossible in real data, but consistent with the original behavior). For `rate === 0`, `stateTaxOnTrad = 0` and `tradGross = tradSpend` — same as before.
+
+The exemption is applied to `tradSpend` (net) rather than `tradGross` (gross). Mathematically, exemptions apply to gross income, but since state rates are flat (max 9.9%) the understatement is small (< 0.5% of the exempted amount). This avoids a circular dependency between the gross-up and the exemption calculation.
 
 ### Survivor and retirement-state transitions
 
-No special handling needed. The drawdown loop already switches `stateInfo` vs `retirementStateInfo` via `hasMoved`, and pension variants are already pre-computed per state. `computeStateTax` takes `stateInfo` as a parameter, so correct exemption data flows automatically.
+No special handling needed beyond the pre-loop variants above. The `pensionSurvivorPct` multiplier in the drawdown loop is unchanged — it is applied after selecting the pre-computed net value, so the survivor reduction and the exemption compose correctly.
 
-### New return value
+`stateTaxMonthly` in the return value is computed from the pre-loop pension and SS values. It reflects pension exemption savings but **not** trad withdrawal exemption savings — trad tax is only computed inside the drawdown loop and is not part of the year-0 summary. This is consistent with the existing model.
+
+### New return value: `stateExemptionSavingsMonthly`
+
+The savings figure is **pension-only** at year 0. Trad exemption savings depend on year-0 withdrawal amount which varies by asset mix — pension savings alone is the most meaningful and stable figure to show. The UI label reflects this: "Pension exemption savings" rather than "State retirement exemptions" to avoid implying the figure covers all retirement income types.
 
 ```js
-// Compute at year-0 after the pre-loop section
-const pensionExemptSavingsMonthly =
-  (pension * stateInfo.incomeTax) - computeStateTax({ grossAnnual: pension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12
-  + (spousePension * stateInfo.incomeTax) - computeStateTax({ grossAnnual: spousePension * 12, stateInfo, type: 'pension', personCount: 1 }) / 12;
-
-// Trad exemption savings approximated at year-0 gap
-const tradExemptSavingsMonthly = /* trad withdrawal at year-0 gap × rate reduction */;
-
-return {
-  ...,
-  stateExemptionSavingsMonthly: Math.round(pensionExemptSavingsMonthly + tradExemptSavingsMonthly),
-};
+// Reuse already-computed pensionStateTax and spousePensionStateTax
+// These are the flat-rate tax BEFORE the feature; after the feature they are the exemption-adjusted values.
+// The savings = what the old flat-rate tax would have been minus what it is now.
+const oldPensionTax       = pension      * stateInfo.incomeTax / 12;  // flat rate, no exemption
+const oldSpousePensionTax = spousePension * stateInfo.incomeTax / 12;
+const stateExemptionSavingsMonthly = Math.round(
+  (oldPensionTax - pensionStateTax) + (oldSpousePensionTax - spousePensionStateTax)
+);
 ```
 
-Exact year-0 trad savings formula to be determined during implementation (depends on the monthly gap and asset mix).
+This is computed immediately after the `pensionStateTax` / `spousePensionStateTax` lines, using the current state (not retirement state) — the summary cards always show current-state figures.
+
+### Tax Snapshot total row
+
+The Tax & Cost Summary total row in `ResultsStep.jsx` currently sums:
+```js
+results.federalTaxMonthly + results.stateTaxMonthly + results.monthlyPropertyTax
+```
+
+The `results.stateTaxMonthly` value already reflects exemption-adjusted tax (it's derived from the updated pre-loop computation), so it is already correct. The new `stateExemptionSavingsMonthly` line is a display-only annotation showing how much the exemption saved — it does not need to be subtracted from the total (it is already reflected in `stateTaxMonthly`). No change to the total row formula is needed.
 
 ## UI: Tax & Cost Summary (`ResultsStep.jsx`)
 
 One new line added directly below the existing "State Income Tax" line:
 
 ```
-State retirement exemptions    −$X/mo
+Pension exemption savings    −$X/mo
 ```
 
+- Label is "Pension exemption savings" (not "State retirement exemptions") — the figure is pension-only; labeling it broadly would imply it covers trad withdrawal exemptions as well
 - Shown only when `stateExemptionSavingsMonthly > 0`
 - Styled as a savings/reduction line (green text or matching existing negative-value style)
+- The displayed value is `stateExemptionSavingsMonthly` formatted as a negative dollar amount (e.g., `−$312/mo`)
 - No new user inputs, no changes to `PlannerContext`
 
 ## What Does Not Change
@@ -154,11 +169,14 @@ State retirement exemptions    −$X/mo
 ## Testing
 
 New test file: `tests/stateTax.test.js`
-- Full exemption: tax = 0
+- Full exemption (`Infinity`): tax = 0
 - Partial exemption: tax only on amount above cap
-- No exemption: matches existing flat-rate behavior
-- Zero tax-rate state: tax = 0 regardless of exemption
-- Two-person household: exemption doubles correctly
-- Survivor phase: single-person exemption only
+- No exemption (`0`): matches existing flat-rate behavior exactly
+- Zero tax-rate state: `computeStateTax` returns 0 regardless of exemption value
+- Two-person household (`personCount: 2`): total exempt amount doubles
+- Survivor phase (`personCount: 1`): single-person exemption only
 
-`calc.test.js`: add regression cases for Illinois (full exemption) and Georgia ($65K cap) to confirm end-to-end pipeline.
+`calc.test.js`: add regression cases confirming:
+- Illinois (full exemption): pension net = full pension amount, no state tax deducted
+- Georgia ($65K cap): pension under $65K is untaxed; pension over $65K has tax only on the excess
+- Illinois user with a pension: `stateExemptionSavingsMonthly` equals `pension * stateInfo.incomeTax` rounded (full old tax is saved, new tax is 0)
