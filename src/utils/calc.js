@@ -418,10 +418,18 @@ export function runProjection(inputs) {
     const rothSpend        = Math.min(rothBucket, remaining1 - tradSpendNatural);
 
     // --- Step 2: Tax computation based on spending split ---
-    // State tax on Traditional spending (flat-rate gross-up is exact).
-    // RMD excess is already included in tradSpend so it's captured here automatically.
-    const tradGross      = activeStateTaxRate < 1 ? tradSpend / (1 - activeStateTaxRate) : tradSpend;
-    const stateTaxOnTrad = tradGross - tradSpend;
+    // State tax on Traditional spending — gross-up with per-person exemption.
+    // tradPersonCount: each person has their own tradExemptPerPerson; survivor phase = 1 person.
+    // Exemption is applied to tradSpend (net) as a simplification — mathematically it applies to
+    // gross, but since state rates are flat (max ~10%) the understatement is < 0.5% of the exempted
+    // amount. This avoids a circular dependency between the gross-up and the exemption.
+    const tradPersonCount  = isSurvivor ? 1 : (hasSpouse ? 2 : 1);
+    const tradExemptAnnual = ((hasMoved ? retirementStateInfo : stateInfo).tradExemptPerPerson ?? 0) * tradPersonCount;
+    const taxableTrad      = Math.max(0, tradSpend - tradExemptAnnual);
+    const stateTaxOnTrad   = activeStateTaxRate > 0 && activeStateTaxRate < 1
+      ? taxableTrad * activeStateTaxRate / (1 - activeStateTaxRate)
+      : 0;
+    const tradGross        = tradSpend + stateTaxOnTrad;
 
     // Federal tax — two-iteration real-terms gross-up.
     // rmdExcess / generalFactor adds the forced RMD income to ordinary income for bracket purposes.

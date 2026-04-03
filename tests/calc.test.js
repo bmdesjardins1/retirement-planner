@@ -738,3 +738,18 @@ describe('State retirement income exemptions — pension pre-loop', () => {
     expect(result.stateExemptionSavingsMonthly).toBe(expectedSavings);
   });
 });
+
+describe('State retirement income exemptions — trad withdrawal loop', () => {
+  it('Illinois: trad withdrawal runway is longer than California (same inputs, higher trad balance)', () => {
+    // Illinois exempts all trad withdrawals; California does not.
+    // With a large trad balance, Illinois users pay less state tax on withdrawals → portfolio lasts longer.
+    const californiaInfo = {
+      incomeTax: 0.093, hasSSIncomeTax: false, avgPropertyTaxRate: 0.0073,
+      costOfLivingIndex: 100, pensionExemptPerPerson: 0, tradExemptPerPerson: 0,
+    };
+    const illinoisInfoNormalized = { ...illinoisInfo, costOfLivingIndex: 100, avgPropertyTaxRate: 0.0073 };
+    const califResult = runProjection({ ...BASE, stateInfo: californiaInfo, trad401k: 500000, tradIRA: 100000 });
+    const ilResult    = runProjection({ ...BASE, stateInfo: illinoisInfoNormalized, trad401k: 500000, tradIRA: 100000 });
+    expect(ilResult.runwayYears).toBeGreaterThan(califResult.runwayYears);
+  });
+});
