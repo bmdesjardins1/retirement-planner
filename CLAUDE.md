@@ -8,15 +8,16 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - `src/context/PlannerContext.jsx` — all app state + three projection calls
 - `src/steps/` — ProfileStep, IncomeStep, AssetsStep, SpendingStep, ResultsStep, WhatIfPanel
 - `src/utils/calc.js` — runProjection(), verdictConfig()
+- `src/utils/stateTax.js` — computeStateTax() — state tax with per-person pension/trad exemptions
 - `src/utils/ssUtils.js` — ssAdjustmentFactor() — SSA claiming age multiplier
-- `src/utils/federalTax.js` — estimateFederalTax(), (Phase 2) estimateCapitalGainsTax()
-- `src/data/stateData.js` — all 50 states
+- `src/utils/federalTax.js` — estimateFederalTax(), estimateCapitalGainsTax()
+- `src/data/stateData.js` — all 50 states (incl. pensionExemptPerPerson, tradExemptPerPerson)
 - `src/styles.css` — all styling
 - `docs/superpowers/specs/` — design specs
 - `docs/superpowers/plans/` — implementation plans
 
 ## Active Work
-**Status:** Phase 2 complete. 13 features shipped to main.
+**Status:** Phase 2 complete. 14 features shipped to main.
 
 **Completed:**
 - SS claiming age (62–70 slider, SSA formula, survivor benefit transition in combined projection)
@@ -32,8 +33,9 @@ Deployed: GitHub → Vercel (auto-deploys on push to `main`).
 - Tax & Cost Summary redesign + SS breakeven (PR #18, 2026-03-29) — compact tax snapshot, side-by-side planning insights, SS breakeven callout per person
 - What If scenario comparisons (PR #19, 2026-03-30) — My Plan / What If tab toggle, 6 adjustable variables, verdict + chart + metric table comparison
 - Track A calculation fixes (PR #20, 2026-04-02) — SS COLA, early withdrawal penalty, Medicare Part B base premium, home appreciation, state cap gains tax
+- State retirement income exemptions (PR #21, 2026-04-02) — per-state pension + trad IRA/401k exemptions, computeStateTax() helper, "Pension exemption savings" in Tax Snapshot
 
-**Resume point:** Track A complete. Next: Track B modeling improvements — brainstorm one of: (1) state retirement income exemptions (pension/trad withdrawal exemptions by state), or (2) glide path / asset allocation (stock/bond split over time). Use `superpowers:brainstorming` for whichever is chosen.
+**Resume point:** Track B option 1 complete. Next: Track B option 2 — glide path / asset allocation (stock/bond split that shifts over time). Use `superpowers:brainstorming`.
 
 ## Workflow Rules
 - **Code review after every task** — use `superpowers:requesting-code-review` skill after each task completes
